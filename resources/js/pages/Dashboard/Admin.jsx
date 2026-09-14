@@ -9,17 +9,18 @@ export default function Admin({ stats }) {
                 description="Statistik makro platform dan pendapatan global."
             />
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                 <StatCard label="Total Pengguna" value={stats.total_users} hint="Semua role" />
                 <StatCard label="Total Event" value={stats.total_events} hint="Semua status" />
+                <StatCard label="Menunggu Persetujuan" value={stats.pending_events} hint="Status PENDING" />
                 <StatCard label="Total Pesanan" value={stats.total_orders} hint="Semua status" />
+                <StatCard label="Tiket Aktif" value={stats.active_tickets} hint="Status ACTIVE" />
                 <StatCard label="Pendapatan Global" value={rupiah(stats.revenue)} hint="Dari pesanan PAID" />
             </div>
 
             <Panel>
                 <p className="text-sm text-slate-500">
-                    Manajemen pengguna & verifikasi event tersedia dari menu samping (segara hadir). API admin sudah
-                    aktif untuk integrasi.
+                    Verifikasi event dari menu Verifikasi Event, dan kelola akun pengguna dari menu Kelola Pengguna.
                 </p>
             </Panel>
         </AppLayout>

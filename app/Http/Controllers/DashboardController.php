@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\EventStatus;
 use App\Enums\UserRole;
 use App\Repositories\EventRepository;
 use App\Repositories\OrderRepository;
@@ -64,7 +65,9 @@ class DashboardController extends Controller
         return [
             'total_users' => $this->users->countAll(),
             'total_events' => $this->events->countAll(),
+            'pending_events' => $this->events->countByStatus(EventStatus::Pending->value),
             'total_orders' => $this->orders->countAll(),
+            'active_tickets' => $this->tickets->countActive(),
             'revenue' => $this->orders->paidRevenue(),
         ];
     }

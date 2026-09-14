@@ -19,8 +19,8 @@ const navigation = {
     admin: [
         { label: 'Dashboard', href: '/dashboard' },
         { label: 'Verifikasi Event', href: '/admin/events' },
+        { label: 'Kelola Pengguna', href: '/admin/users' },
         { label: 'Scanner Tiket', href: '/gatekeeper/scanner' },
-        { label: 'Kelola Pengguna', href: null },
     ],
 };
 

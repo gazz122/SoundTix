@@ -99,6 +99,11 @@ class EventRepository
         return Event::count();
     }
 
+    public function countByStatus(string $status): int
+    {
+        return Event::where('status', $status)->count();
+    }
+
     public function countForOrganizer(int $organizerId): int
     {
         return Event::where('organizer_id', $organizerId)->count();

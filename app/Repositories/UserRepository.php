@@ -20,6 +20,11 @@ class UserRepository
         return User::where('email', $email)->first();
     }
 
+    public function findByIdOrFail(int $id): User
+    {
+        return User::findOrFail($id);
+    }
+
     public function paginateForAdmin(?string $search, ?string $role, int $perPage): LengthAwarePaginator
     {
         return User::query()

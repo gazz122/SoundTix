@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\AdminEventController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
@@ -46,6 +47,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/events', [AdminEventController::class, 'index'])->name('events.index');
         Route::post('/events/{event}/approve', [AdminEventController::class, 'approve'])->name('events.approve');
         Route::post('/events/{event}/reject', [AdminEventController::class, 'reject'])->name('events.reject');
+
+        Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
+        Route::get('/users/create', [AdminUserController::class, 'create'])->name('users.create');
+        Route::post('/users', [AdminUserController::class, 'store'])->name('users.store');
+        Route::get('/users/{user}/edit', [AdminUserController::class, 'edit'])->name('users.edit');
+        Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('users.update');
     });
 
     Route::middleware('role:gatekeeper,admin')->prefix('gatekeeper')->name('gatekeeper.')->group(function () {
