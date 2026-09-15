@@ -67,22 +67,20 @@ class Event extends Model
     }
 
     /**
+     * Manual keyword search across event name, artist/performer, or location.
+     *
      * @param  array<string, mixed>  $filters
      */
     public function scopeFilterable(Builder $query, array $filters = []): Builder
     {
-        return $query
-            ->when($filters['q'] ?? null, function (Builder $query, string $q) {
-                $query->where(function (Builder $query) use ($q) {
-                    $pattern = '%'.$q.'%';
-                    $query->whereLike('title', $pattern)
-                        ->orWhereLike('city', $pattern)
-                        ->orWhereLike('venue_name', $pattern);
-                });
-            })
-            ->when($filters['city'] ?? null, fn (Builder $query, string $city) => $query->where('city', $city))
-            ->when($filters['date'] ?? null, fn (Builder $query, string $date) => $query->whereDate('event_date', $date))
-            ->when($filters['category'] ?? null, fn (Builder $query, string $category) => $query
-                ->whereHas('ticketCategories', fn (Builder $q) => $q->where('name', $category)));
+        return $query->when($filters['q'] ?? null, function (Builder $query, string $q) {
+            $pattern = '%'.$q.'%';
+            $query->where(function (Builder $query) use ($pattern) {
+                $query->whereLike('title', $pattern)
+                    ->orWhereLike('venue_name', $pattern)
+                    ->orWhereLike('city', $pattern)
+                    ->orWhereHas('performers', fn (Builder $query) => $query->whereLike('name', $pattern));
+            });
+        });
     }
 }

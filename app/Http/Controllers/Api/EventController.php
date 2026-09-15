@@ -16,7 +16,7 @@ class EventController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         return EventResource::collection(
-            $this->events->publishedUpcomingPaginated($request->only(['q', 'city', 'date', 'category']), 12),
+            $this->events->publishedUpcomingPaginated($request->only('q'), 12),
         );
     }
 

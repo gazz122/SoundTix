@@ -42,44 +42,43 @@ class EventDiscoveryFeatureTest extends TestCase
             );
     }
 
-    public function test_homepage_filters_by_city(): void
+    public function test_homepage_search_matches_performer_name(): void
     {
-        Event::factory()->published()->count(2)->create(['city' => 'Bandung']);
-        Event::factory()->published()->create(['city' => 'Jakarta']);
+        $noah = Event::factory()->published()->create(['title' => 'Konser Akbar 2026']);
+        $noah->performers()->sync(Performer::factory()->create(['name' => 'Dewa 19']));
 
-        $this->get('/?city=Bandung')
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->has('events.data', 2));
-    }
+        Event::factory()->published()->create();
 
-    public function test_homepage_filters_by_date(): void
-    {
-        $targetDate = today()->addDays(10)->toDateString();
-
-        Event::factory()->published()->create(['event_date' => $targetDate]);
-        Event::factory()->published()->create(['event_date' => today()->addDays(20)->toDateString()]);
-
-        $this->get('/?date='.$targetDate)
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->has('events.data', 1));
-    }
-
-    public function test_homepage_filters_by_ticket_category(): void
-    {
-        $venueEvent = Event::factory()->published()->create();
-        TicketCategory::factory()->for($venueEvent)->create(['name' => 'VIP']);
-        TicketCategory::factory()->for($venueEvent)->create(['name' => 'Reguler']);
-
-        $otherEvent = Event::factory()->published()->create();
-        TicketCategory::factory()->for($otherEvent)->create(['name' => 'Festival']);
-
-        $this->get('/?category=VIP')
+        $this->get('/?q=dewa')
             ->assertOk()
             ->assertInertia(
                 fn (Assert $page) => $page
                     ->has('events.data', 1)
-                    ->where('events.data.0.id', $venueEvent->id),
+                    ->where('events.data.0.id', $noah->id),
             );
+    }
+
+    public function test_homepage_search_matches_location(): void
+    {
+        $event = Event::factory()->published()->create(['city' => 'Bandung', 'title' => 'Festival Kopi']);
+
+        $this->get('/?q=bandung')
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->has('events.data', 1)
+                    ->where('events.data.0.id', $event->id),
+            );
+    }
+
+    public function test_homepage_exposes_featured_events_for_hero_carousel(): void
+    {
+        Event::factory()->published()->count(4)->create();
+
+        $this->get('/')->assertOk()->assertInertia(
+            fn (Assert $page) => $page
+                ->has('featured.data', 4),
+        );
     }
 
     public function test_homepage_shows_empty_state_when_no_results(): void

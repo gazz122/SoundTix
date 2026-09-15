@@ -8,18 +8,6 @@ use Illuminate\Support\Collection;
 
 class TicketCategoryRepository
 {
-    /**
-     * @return array<int, string>
-     */
-    public function availableNames(): array
-    {
-        return TicketCategory::query()
-            ->distinct()
-            ->orderBy('name')
-            ->pluck('name')
-            ->all();
-    }
-
     public function forEventOrderedByPrice(Event $event): Collection
     {
         return $event->ticketCategories()
@@ -62,5 +50,22 @@ class TicketCategoryRepository
         TicketCategory::query()
             ->whereKey($categoryId)
             ->increment('available_quantity', $quantity);
+    }
+
+    /**
+     * Quota fill percentage per category for an organizer's events.
+     *
+     * @return Collection<int, array{event_title: string, category_name: string, price: float, total: int, sold: int, percentage: float}>
+     */
+    public function quotaFillForOrganizer(int $organizerId): Collection
+    {
+        return TicketCategory::query()
+            ->selectRaw('events.title as event_title, ticket_categories.name as category_name, ticket_categories.price, ticket_categories.total_quantity as total, (ticket_categories.total_quantity - ticket_categories.available_quantity) as sold, ROUND((ticket_categories.total_quantity - ticket_categories.available_quantity) / ticket_categories.total_quantity * 100, 1) as percentage')
+            ->join('events', 'ticket_categories.event_id', '=', 'events.id')
+            ->where('events.organizer_id', $organizerId)
+            ->where('ticket_categories.total_quantity', '>', 0)
+            ->orderByDesc('events.event_date')
+            ->orderBy('ticket_categories.price')
+            ->get();
     }
 }

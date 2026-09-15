@@ -25,17 +25,17 @@ class EventRepository
             ->paginate($perPage);
     }
 
-    /**
-     * @return array<int, string>
-     */
-    public function publishedCities(): array
+    /** Latest published upcoming events for the homepage hero carousel. */
+    public function featuredPublishedUpcoming(int $limit = 4): Collection
     {
         return Event::query()
             ->published()
-            ->distinct()
-            ->orderBy('city')
-            ->pluck('city')
-            ->all();
+            ->upcoming()
+            ->with('performers')
+            ->orderBy('event_date')
+            ->orderBy('start_time')
+            ->limit($limit)
+            ->get();
     }
 
     public function findPublishedBySlug(string $slug): Event

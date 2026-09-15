@@ -6,6 +6,7 @@ use App\Enums\EventStatus;
 use App\Enums\UserRole;
 use App\Repositories\EventRepository;
 use App\Repositories\OrderRepository;
+use App\Repositories\TicketCategoryRepository;
 use App\Repositories\TicketRepository;
 use App\Repositories\UserRepository;
 use Illuminate\Http\Request;
@@ -18,6 +19,7 @@ class DashboardController extends Controller
         private EventRepository $events,
         private OrderRepository $orders,
         private TicketRepository $tickets,
+        private TicketCategoryRepository $ticketCategories,
         private UserRepository $users,
     ) {}
 
@@ -54,6 +56,9 @@ class DashboardController extends Controller
             'pending_events' => $this->events->countForOrganizerByStatus($userId, 'pending'),
             'tickets_sold' => $sales['quantity'],
             'revenue' => $sales['revenue'],
+            'sales_by_day' => $this->orders->dailyPaidRevenueForOrganizer($userId, 30),
+            'top_categories' => $this->orders->topSellingCategoriesForOrganizer($userId),
+            'quota_fill' => $this->ticketCategories->quotaFillForOrganizer($userId),
         ];
     }
 

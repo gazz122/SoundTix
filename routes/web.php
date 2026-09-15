@@ -9,6 +9,7 @@ use App\Http\Controllers\EventController;
 use App\Http\Controllers\GatekeeperScannerController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrganizerEventController;
+use App\Http\Controllers\OrganizerReportController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\TicketCategoryController;
 use Illuminate\Support\Facades\Route;
@@ -34,6 +35,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/events/{event}/edit', [OrganizerEventController::class, 'edit'])->name('events.edit');
         Route::put('/events/{event}', [OrganizerEventController::class, 'update'])->name('events.update');
         Route::post('/events/{event}/submit', [OrganizerEventController::class, 'submit'])->name('events.submit');
+
+        Route::get('/reports', [OrganizerReportController::class, 'index'])->name('reports.index');
+        Route::get('/reports/csv', [OrganizerReportController::class, 'csv'])->name('reports.csv');
+        Route::get('/reports/print', [OrganizerReportController::class, 'print'])->name('reports.print');
     });
 
     Route::middleware('role:organizer,admin')->prefix('organizer')->name('organizer.')->group(function () {

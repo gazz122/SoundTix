@@ -122,11 +122,22 @@ Menggunakan interface `PaymentGatewayInterface` dengan implementasi default `Moc
 
 * **EPIC 2: Event Discovery & Showcase**
 
-  * Homepage dengan Hero Section, Featured Events, dan pencarian *full-text*.
+  * Homepage memiliki **header/navigation bar** berisi: Logo SoundTix, Search bar pencarian manual, tombol Masuk, dan tombol Daftar.
 
-  * Filter berdasarkan kota, tanggal, dan kategori.
+  * Search bar menggunakan pencarian manual berbasis kata kunci (nama event, artis/performer, atau lokasi). Hasil pencarian menampilkan event yang relevan berdasarkan keyword yang dimasukkan.
 
-  * Detail event menampilkan rundown, daftar artis/performer, lokasi, dan daftar kategori tiket.
+  * Tidak menggunakan filter berdasarkan kota, tanggal, atau kategori pada halaman discovery.
+
+  * Homepage menampilkan **poster/banner konser** sebagai visual utama event melalui **cover transition / hero carousel** yang menampilkan beberapa event unggulan secara bergantian. Setiap poster menampilkan nama event, artis/performer, tanggal event, lokasi, dan tombol Lihat Detail.
+
+  * Transition berjalan dengan halus dan nyaman digunakan baik di desktop maupun mobile. Poster menggunakan rasio dan ukuran responsif agar tidak terpotong secara tidak proporsional di berbagai ukuran layar.
+
+  * **Footer & Informational Navigation** tersedia di seluruh halaman publik dan terdiri dari:
+    * **Jelajahi SoundTix:** Tentang SoundTix, Mencari Event, Panduan Penyelenggara.
+    * **Bantuan:** Hubungi SoundTix, Informasi Penyelenggara.
+    * Menampilkan logo SoundTix, copyright, serta informasi singkat platform. Struktur footer konsisten pada seluruh halaman publik yang menggunakan layout utama SoundTix.
+
+  * Detail event menampilkan rundown, daftar artis/performer, lokasi, dan daftar kategori tiket.
 
 * **EPIC 3: Event & Ticket Management (Organizer & Admin)**
 
@@ -173,6 +184,20 @@ Menggunakan interface `PaymentGatewayInterface` dengan implementasi default `Moc
   * Export laporan transaksi ke CSV/PDF.
 
   * Dashboard Admin: Statistik makro platform dan pendapatan global.
+
+* **EPIC 9: Responsive UI/UX**
+
+  * Seluruh halaman publik SoundTix wajib responsive dan dapat digunakan dengan baik pada desktop, laptop, tablet, dan smartphone.
+
+  * Header menyesuaikan ukuran layar. Search bar tetap mudah digunakan pada perangkat mobile.
+
+  * Poster / hero event menyesuaikan ukuran viewport tanpa merusak rasio gambar.
+
+  * Footer menggunakan layout responsive — beberapa kolom pada layar lebar, berubah menjadi layout vertikal pada layar kecil.
+
+  * Button, typography, card, spacing, dan navigation harus memiliki ukuran nyaman untuk perangkat touchscreen.
+
+  * Tidak boleh terdapat horizontal scrolling pada viewport normal. Seluruh komponen utama menggunakan breakpoint responsive yang konsisten.
 
 ---
 
@@ -382,7 +407,9 @@ Menggunakan interface `PaymentGatewayInterface` dengan implementasi default `Moc
 
 * **MILESTONE 17:** Security, Validation & Concurrency Test
 
-* **MILESTONE 18:** UI/UX Refinement & Responsive Polish
+* **MILESTONE 18:** UI/UX Refinement, Responsive Design & Public Layout Polish
+
+  * Scope: Finalisasi Header SoundTix · Search bar pada Header · Penghapusan sistem filter · Hero/cover transition poster event · Footer SoundTix · Responsive desktop/tablet/mobile · Typography, spacing, card, dan button refinement · Cross-device UI testing.
 
 * **MILESTONE 19:** Integration Testing & Bug Fixing
 

@@ -11,6 +11,7 @@ const navigation = {
         { label: 'Dashboard', href: '/dashboard' },
         { label: 'Event Saya', href: '/organizer/events' },
         { label: 'Buat Event', href: '/organizer/events/create' },
+        { label: 'Laporan', href: '/organizer/reports' },
     ],
     gatekeeper: [
         { label: 'Dashboard', href: '/dashboard' },
