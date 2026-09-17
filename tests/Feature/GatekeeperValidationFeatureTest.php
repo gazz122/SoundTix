@@ -68,11 +68,11 @@ class GatekeeperValidationFeatureTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->component('Gatekeeper/Scanner'));
     }
 
-    public function test_admin_can_open_scanner_page(): void
+    public function test_admin_cannot_open_scanner_page(): void
     {
         $this->actingAs(User::factory()->admin()->create())
             ->get('/gatekeeper/scanner')
-            ->assertOk();
+            ->assertForbidden();
     }
 
     public function test_customer_and_organizer_cannot_open_scanner(): void

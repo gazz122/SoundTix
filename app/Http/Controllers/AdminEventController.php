@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\EventStatus;
 use App\Models\Event;
+use App\Notifications\SoundTixNotification;
 use App\Repositories\EventRepository;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,6 +32,13 @@ class AdminEventController extends Controller
         $event = $this->findPendingEvent($id);
 
         $event->update(['status' => EventStatus::Published->value]);
+        $event->organizer->notify(new SoundTixNotification([
+            'title' => 'Event disetujui',
+            'message' => "Event {$event->title} telah disetujui dan sekarang tayang.",
+            'type' => 'event_approved',
+            'action_url' => route('organizer.events.index'),
+            'action_label' => 'Kelola event',
+        ]));
 
         return redirect()
             ->route('admin.events.index', ['status' => EventStatus::Pending->value])
@@ -47,6 +55,13 @@ class AdminEventController extends Controller
             'status' => EventStatus::Rejected->value,
             'rejection_reason' => $reason,
         ]);
+        $event->organizer->notify(new SoundTixNotification([
+            'title' => 'Event perlu diperbaiki',
+            'message' => "Event {$event->title} ditolak: {$reason}",
+            'type' => 'event_rejected',
+            'action_url' => route('organizer.events.edit', $event->id),
+            'action_label' => 'Perbaiki event',
+        ]));
 
         return redirect()
             ->route('admin.events.index', ['status' => EventStatus::Pending->value])

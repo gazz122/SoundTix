@@ -1,5 +1,6 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import logo from '../../../assets/logo.png';
 
 const navigation = {
     customer: [
@@ -21,7 +22,6 @@ const navigation = {
         { label: 'Dashboard', href: '/dashboard' },
         { label: 'Verifikasi Event', href: '/admin/events' },
         { label: 'Kelola Pengguna', href: '/admin/users' },
-        { label: 'Scanner Tiket', href: '/gatekeeper/scanner' },
     ],
 };
 
@@ -49,14 +49,21 @@ export default function AppLayout({ children }) {
                 <div className="flex-1 flex flex-col min-w-0">
                     <header className="lg:hidden flex items-center justify-between py-4">
                         <Brand compact />
-                        <button
-                            type="button"
-                            onClick={() => setSidebarOpen((open) => !open)}
-                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium"
-                        >
-                            Menu
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <NotificationBell />
+                            <button
+                                type="button"
+                                onClick={() => setSidebarOpen((open) => !open)}
+                                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium"
+                            >
+                                Menu
+                            </button>
+                        </div>
                     </header>
+
+                    <div className="hidden justify-end py-4 lg:flex">
+                        <NotificationBell />
+                    </div>
 
                     {sidebarOpen && (
                         <div className="lg:hidden rounded-xl border border-slate-200/80 bg-white p-4 mb-4 shadow-sm">
@@ -79,9 +86,7 @@ export default function AppLayout({ children }) {
 function Brand() {
     return (
         <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white font-bold text-lg shadow-sm">
-                S
-            </div>
+            <img src={logo} alt="SoundTix" className="h-10 w-10 rounded-xl object-contain shadow-sm" />
             <div>
                 <p className="text-lg font-semibold leading-tight text-slate-900">SoundTix</p>
                 <p className="text-xs text-slate-500">Konser Digital</p>
@@ -121,5 +126,28 @@ function LogoutButton() {
         >
             Keluar
         </button>
+    );
+}
+
+function NotificationBell() {
+    const notifications = usePage().props.auth?.notifications;
+    const unreadCount = notifications?.unread_count ?? 0;
+
+    return (
+        <Link
+            href="/notifications"
+            aria-label={unreadCount > 0 ? `${unreadCount} notifikasi belum dibaca` : 'Notifikasi'}
+            title="Notifikasi"
+            className="relative flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition-colors hover:border-indigo-300 hover:text-indigo-600"
+        >
+            <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+            </svg>
+            {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+            )}
+        </Link>
     );
 }

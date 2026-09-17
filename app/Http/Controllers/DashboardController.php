@@ -33,9 +33,21 @@ class DashboardController extends Controller
             ]),
             UserRole::Admin => Inertia::render('Dashboard/Admin', [
                 'stats' => $this->adminStats(),
+                'pending_events' => $this->events->pendingForAdmin()
+                    ->map(fn ($event) => [
+                        'id' => $event->id,
+                        'title' => $event->title,
+                        'venue_name' => $event->venue_name,
+                        'city' => $event->city,
+                        'event_date' => $event->event_date?->format('d M Y'),
+                        'organizer' => $event->organizer?->name,
+                    ])
+                    ->values()
+                    ->all(),
             ]),
-            UserRole::Gatekeeper => Inertia::render('Dashboard/Gatekeeper', [
+            UserRole::Gatekeeper => Inertia::render('Dashboard/Organizer', [
                 'stats' => $this->gatekeeperStats($user->id),
+                'dashboard_mode' => 'gatekeeper',
             ]),
             default => Inertia::render('Dashboard/Customer', [
                 'stats' => $this->customerStats($user->id),
@@ -71,8 +83,6 @@ class DashboardController extends Controller
             'total_users' => $this->users->countAll(),
             'total_events' => $this->events->countAll(),
             'pending_events' => $this->events->countByStatus(EventStatus::Pending->value),
-            'total_orders' => $this->orders->countAll(),
-            'active_tickets' => $this->tickets->countActive(),
             'revenue' => $this->orders->paidRevenue(),
         ];
     }

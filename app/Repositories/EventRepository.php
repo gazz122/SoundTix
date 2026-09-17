@@ -89,6 +89,15 @@ class EventRepository
         return Event::where('status', EventStatus::Pending->value)->findOrFail($id);
     }
 
+    public function pendingForAdmin(int $limit = 5): Collection
+    {
+        return Event::with('organizer:id,name')
+            ->where('status', EventStatus::Pending->value)
+            ->orderByDesc('updated_at')
+            ->limit($limit)
+            ->get();
+    }
+
     public function findByIdOrFail(int $id): Event
     {
         return Event::findOrFail($id);

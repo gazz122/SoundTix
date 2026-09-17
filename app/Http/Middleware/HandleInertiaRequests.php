@@ -41,6 +41,22 @@ class HandleInertiaRequests extends Middleware
                     'email' => $user->email,
                     'role' => $user->role->value,
                 ] : null,
+                'notifications' => $user ? [
+                    'unread_count' => $user->unreadNotifications()->count(),
+                    'latest' => $user->unreadNotifications()
+                        ->latest()
+                        ->limit(5)
+                        ->get()
+                        ->map(fn ($notification) => [
+                            'id' => $notification->id,
+                            'title' => $notification->data['title'] ?? 'Notifikasi SoundTix',
+                            'message' => $notification->data['message'] ?? '',
+                            'action_url' => $notification->data['action_url'] ?? null,
+                            'created_at' => $notification->created_at?->diffForHumans(),
+                        ])
+                        ->values()
+                        ->all(),
+                ] : null,
             ],
             'flash' => [
                 'success' => Session::get('success'),

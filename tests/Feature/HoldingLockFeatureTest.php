@@ -7,6 +7,7 @@ use App\Models\Event;
 use App\Models\Order;
 use App\Models\TicketCategory;
 use App\Models\User;
+use App\Services\OrderExpirationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -94,6 +95,20 @@ class HoldingLockFeatureTest extends TestCase
 
         $this->assertSame(100, $category->fresh()->available_quantity);
         $this->assertSame(OrderStatus::Expired->value, Order::first()->status);
+    }
+
+    public function test_release_count_only_includes_orders_won_by_guarded_update(): void
+    {
+        $event = $this->eventWithCategory();
+        $category = $event->ticketCategories->first();
+        $order = $this->expiredPendingOrder($this->customer(), $category, 3);
+        $service = app(OrderExpirationService::class);
+
+        $this->assertTrue($service->expire($order));
+
+        $this->assertSame(0, $service->releaseExpired());
+        $this->assertSame(OrderStatus::Expired->value, $order->fresh()->status);
+        $this->assertSame(100, $category->fresh()->available_quantity);
     }
 
     public function test_release_only_touches_pending_orders(): void

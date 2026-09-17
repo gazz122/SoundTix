@@ -1,8 +1,14 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/ui/StatCard';
 
-export default function Organizer({ stats }) {
+export default function Organizer({ stats, dashboard_mode = 'organizer' }) {
+    const isGatekeeper = usePage().props.auth?.user?.role === 'gatekeeper' || dashboard_mode === 'gatekeeper';
+
+    if (isGatekeeper) {
+        return <GatekeeperDashboard stats={stats} />;
+    }
+
     const last7 = stats.sales_by_day.slice(-7);
     const maxRevenue = Math.max(...last7.map((d) => d.revenue), 1);
 
@@ -107,6 +113,33 @@ export default function Organizer({ stats }) {
     );
 }
 
+function GatekeeperDashboard({ stats }) {
+    return (
+        <AppLayout>
+            <Header name="Dashboard Gatekeeper" description="Akses terpusat untuk validasi tiket di area gate." />
+
+            <div className="grid gap-4 sm:grid-cols-3">
+                <StatCard label="Validasi Hari Ini" value={stats.validated_today} hint={`Tanggal ${today()}`} />
+                <StatCard label="Total Validasi" value={stats.validated_total} hint="Akumulasi Anda" />
+                <StatCard label="Tiket Aktif Platform" value={stats.active_tickets} hint="Belum dipindai" />
+            </div>
+
+            <Panel title="Operasional Gate">
+                <p className="text-sm leading-6 text-slate-500">
+                    Gunakan scanner untuk memvalidasi e-ticket pengunjung. Akun gatekeeper hanya memiliki akses ke
+                    dashboard ringkas dan scanner tiket.
+                </p>
+                <Link
+                    href="/gatekeeper/scanner"
+                    className="mt-5 inline-flex rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-700"
+                >
+                    Buka Scanner Tiket
+                </Link>
+            </Panel>
+        </AppLayout>
+    );
+}
+
 function Header({ name, description }) {
     return (
         <div className="mb-8">
@@ -137,4 +170,8 @@ function rupiahShort(value) {
     if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'jt';
     if (n >= 1_000) return (n / 1_000).toFixed(0) + 'rb';
     return n.toLocaleString('id-ID');
+}
+
+function today() {
+    return new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 }

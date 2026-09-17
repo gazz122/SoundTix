@@ -1,5 +1,6 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import logo from '../../../assets/logo.png';
 
 export default function PublicLayout({ children }) {
     const user = usePage().props.auth?.user;
@@ -10,9 +11,7 @@ export default function PublicLayout({ children }) {
                 <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between gap-4 py-3 md:flex-1 md:gap-8">
                         <Link href="/" className="flex shrink-0 items-center gap-2.5 md:flex-1">
-                            <span className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-600 font-bold text-white shadow-sm">
-                                S
-                            </span>
+                            <img src={logo} alt="SoundTix" className="h-9 w-9 rounded-xl object-contain shadow-sm" />
                             <span className="text-lg font-semibold text-slate-900">SoundTix</span>
                         </Link>
 
@@ -60,9 +59,7 @@ export default function PublicLayout({ children }) {
                     <div className="grid gap-8 md:grid-cols-3">
                         <div>
                             <Link href="/" className="flex items-center gap-2.5">
-                                <span className="grid h-8 w-8 place-items-center rounded-lg bg-indigo-600 font-bold text-white">
-                                    S
-                                </span>
+                                <img src={logo} alt="SoundTix" className="h-8 w-8 rounded-lg object-contain" />
                                 <span className="text-base font-semibold text-slate-900">SoundTix</span>
                             </Link>
                             <p className="mt-3 max-w-xs text-sm text-slate-500">
@@ -74,9 +71,9 @@ export default function PublicLayout({ children }) {
                         <div>
                             <h4 className="text-sm font-semibold text-slate-900">Jelajahi SoundTix</h4>
                             <ul className="mt-3 space-y-2 text-sm text-slate-500">
-                                <li><Link href="/" className="hover:text-indigo-600 transition-colors">Tentang SoundTix</Link></li>
+                                <li><Link href="/about" className="hover:text-indigo-600 transition-colors">Tentang SoundTix</Link></li>
                                 <li><Link href="/" className="hover:text-indigo-600 transition-colors">Mencari Event</Link></li>
-                                <li><span className="cursor-default">Panduan Penyelenggara</span></li>
+                                <li><Link href="/organizer-guide" className="hover:text-indigo-600 transition-colors">Panduan Penyelenggara</Link></li>
                             </ul>
                         </div>
 
@@ -88,7 +85,7 @@ export default function PublicLayout({ children }) {
                                         Hubungi SoundTix
                                     </a>
                                 </li>
-                                <li><span className="cursor-default">Informasi Penyelenggara</span></li>
+                                <li><Link href="/organizer-info" className="hover:text-indigo-600 transition-colors">Informasi Penyelenggara</Link></li>
                             </ul>
                         </div>
                     </div>

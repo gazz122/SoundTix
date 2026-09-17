@@ -7,6 +7,7 @@ use App\Enums\PaymentStatus;
 use App\Enums\PaymentType;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Notifications\SoundTixNotification;
 use App\Repositories\PaymentRepository;
 use App\Services\OrderExpirationService;
 use App\Services\TicketGenerator;
@@ -63,6 +64,13 @@ class MockPaymentDriver implements PaymentGatewayInterface
                 ]);
 
                 $this->tickets->issueForPaidOrder($order);
+                $order->customer->notify(new SoundTixNotification([
+                    'title' => 'Pembayaran berhasil',
+                    'message' => "Pembayaran untuk pesanan {$order->order_code} berhasil. E-tiket Anda siap digunakan.",
+                    'type' => 'payment_settled',
+                    'action_url' => route('orders.show', $order->order_code),
+                    'action_label' => 'Lihat e-tiket',
+                ]));
             } elseif ($result === PaymentStatus::Expire) {
                 $locked->update(['payment_status' => PaymentStatus::Expire->value]);
                 $this->expiration->expire($order);

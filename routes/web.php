@@ -7,15 +7,20 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\GatekeeperScannerController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrganizerEventController;
 use App\Http\Controllers\OrganizerReportController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\TicketCategoryController;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 Route::get('/', [EventController::class, 'index'])->name('home');
 Route::get('/events/{event:slug}', [EventController::class, 'show'])->name('events.show');
+Route::get('/about', fn () => Inertia::render('About'))->name('about');
+Route::get('/organizer-guide', fn () => Inertia::render('OrganizerGuide'))->name('organizer.guide');
+Route::get('/organizer-info', fn () => Inertia::render('OrganizerInfo'))->name('organizer.info');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
@@ -27,6 +32,9 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
+    Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
 
     Route::middleware('role:organizer')->prefix('organizer')->name('organizer.')->group(function () {
         Route::get('/events', [OrganizerEventController::class, 'index'])->name('events.index');
@@ -60,7 +68,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('users.update');
     });
 
-    Route::middleware('role:gatekeeper,admin')->prefix('gatekeeper')->name('gatekeeper.')->group(function () {
+    Route::middleware('role:gatekeeper')->prefix('gatekeeper')->name('gatekeeper.')->group(function () {
         Route::get('/scanner', [GatekeeperScannerController::class, 'index'])->name('scanner');
         Route::post('/validate', [GatekeeperScannerController::class, 'validate'])->name('validate');
     });

@@ -11,6 +11,7 @@ use App\Models\Order;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\User;
+use App\Notifications\SoundTixNotification;
 use App\Repositories\EventRepository;
 use App\Repositories\OrderRepository;
 use App\Repositories\TicketCategoryRepository;
@@ -64,6 +65,13 @@ class OrderController extends Controller
         }
 
         $order = $this->createOrder($event, $request->user(), $data['items']);
+        $request->user()->notify(new SoundTixNotification([
+            'title' => 'Pesanan berhasil dibuat',
+            'message' => "Pesanan {$order->order_code} menunggu pembayaran selama 15 menit.",
+            'type' => 'order_created',
+            'action_url' => route('orders.show', $order->order_code),
+            'action_label' => 'Bayar sekarang',
+        ]));
 
         return redirect()
             ->route('orders.show', $order->order_code)
