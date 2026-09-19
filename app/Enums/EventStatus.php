@@ -9,6 +9,7 @@ enum EventStatus: string
     case Published = 'published';
     case Rejected = 'rejected';
     case Cancelled = 'cancelled';
+    case Completed = 'completed';
 
     public function label(): string
     {
@@ -18,6 +19,7 @@ enum EventStatus: string
             self::Published => 'Published',
             self::Rejected => 'Ditolak',
             self::Cancelled => 'Dibatalkan',
+            self::Completed => 'Selesai',
         };
     }
 }

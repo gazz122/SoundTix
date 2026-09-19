@@ -83,4 +83,12 @@ class EventFactory extends Factory
             'status' => 'cancelled',
         ]);
     }
+
+    public function completed(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => 'completed',
+            'event_date' => now()->subDays(1)->toDateString(),
+        ]);
+    }
 }
