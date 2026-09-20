@@ -37,31 +37,36 @@ class RoleDashboardFeatureTest extends TestCase
                 ->where('pending_events.0.organizer', $organizer->name));
     }
 
-    public function test_gatekeeper_uses_shared_organizer_dashboard_shell_with_scanner_stats(): void
+    public function test_gatekeeper_is_redirected_to_scanner_from_dashboard(): void
     {
         $gatekeeper = User::factory()->gatekeeper()->create();
 
         $this->actingAs($gatekeeper)
             ->get('/dashboard')
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Dashboard/Organizer')
-                ->where('dashboard_mode', 'gatekeeper')
-                ->has('stats.validated_today')
-                ->has('stats.validated_total')
-                ->has('stats.active_tickets'));
+            ->assertRedirect(route('dashboard.scan'));
     }
 
-    public function test_gatekeeper_cannot_access_organizer_management_routes(): void
+    public function test_gatekeeper_is_redirected_from_non_sensitive_organizer_routes(): void
     {
         $gatekeeper = User::factory()->gatekeeper()->create();
 
         $this->actingAs($gatekeeper)
             ->get('/organizer/events')
-            ->assertForbidden();
+            ->assertRedirect(route('dashboard.scan'));
+    }
+
+    public function test_gatekeeper_cannot_access_sensitive_organizer_routes(): void
+    {
+        $gatekeeper = User::factory()->gatekeeper()->create();
 
         $this->actingAs($gatekeeper)
             ->get('/organizer/reports')
+            ->assertForbidden();
+
+        $event = Event::factory()->create(['organizer_id' => User::factory()->organizer()->create()->id]);
+
+        $this->actingAs($gatekeeper)
+            ->get("/organizer/events/{$event->id}/edit")
             ->assertForbidden();
     }
 }

@@ -163,6 +163,15 @@ class PayoutFeatureTest extends TestCase
         $this->assertNotNull($payout->fresh()->processed_at);
     }
 
+    public function test_payout_is_available_from_event_and_organizer_relationships(): void
+    {
+        [$organizer, $event] = $this->completedEventWithRevenue();
+        $payout = Payout::factory()->create(['event_id' => $event->id, 'organizer_id' => $organizer->id]);
+
+        $this->assertTrue($event->payouts->contains($payout));
+        $this->assertTrue($organizer->payouts->contains($payout));
+    }
+
     public function test_admin_cannot_approve_non_pending_payout(): void
     {
         $admin = User::factory()->admin()->create();

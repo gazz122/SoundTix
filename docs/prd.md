@@ -418,3 +418,7 @@ Menggunakan interface `PaymentGatewayInterface` dengan implementasi default `Moc
 * **MILESTONE 21:** UKOM Documentation & Diagram Portfolio
 
 * **MILESTONE 22:** Final Review & Production Readiness
+
+* **MILESTONE 23:** Organizer Payout & Escrow Withdrawal
+
+  * Scope: Status event `completed` · Payout model, migration, dan `PayoutStatus` enum · `PayoutService` (validasi event selesai, cegah pengajuan ganda, kalkulasi gross/fee 5%/net) · API pengajuan payout organizer · API daftar & approval payout admin · Disbursement gateway (mock) · Feature test.

@@ -9,21 +9,21 @@ export default function PublicLayout({ children }) {
         <div className="min-h-screen overflow-x-hidden bg-slate-50 text-slate-800 font-sans">
             <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 backdrop-blur">
                 <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center justify-between gap-4 py-3 md:flex-1 md:gap-8">
+                    <div className="flex items-center justify-between gap-3 py-3 min-w-0 sm:gap-4 md:flex-1 md:gap-8">
                         <Link href="/" className="flex shrink-0 items-center gap-2.5 md:flex-1">
                             <img src={logo} alt="SoundTix" className="h-9 w-9 rounded-xl object-contain shadow-sm" />
-                            <span className="text-lg font-semibold text-slate-900">SoundTix</span>
+                            <span className="hidden text-lg font-semibold text-slate-900 min-[400px]:inline">SoundTix</span>
                         </Link>
 
                         <div className="hidden md:absolute md:left-1/2 md:-translate-x-1/2 md:block md:w-full md:max-w-md">
                             <SearchBar />
                         </div>
 
-                        <nav className="flex shrink-0 items-center gap-3 md:flex-1 md:justify-end">
+                        <nav className="flex shrink-0 items-center gap-2 sm:gap-3 md:flex-1 md:justify-end">
                             {user ? (
                                 <Link
                                     href="/dashboard"
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-lg transition-all shadow-sm"
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-3 sm:px-5 rounded-lg transition-all shadow-sm text-sm sm:text-base"
                                 >
                                     Dashboard
                                 </Link>
@@ -31,13 +31,13 @@ export default function PublicLayout({ children }) {
                                 <>
                                     <Link
                                         href="/login"
-                                        className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 py-2 px-5 rounded-lg transition-all"
+                                        className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 py-2 px-3 sm:px-5 rounded-lg transition-all text-sm sm:text-base"
                                     >
                                         Masuk
                                     </Link>
                                     <Link
                                         href="/register"
-                                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-lg transition-all shadow-sm"
+                                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-3 sm:px-5 rounded-lg transition-all shadow-sm text-sm sm:text-base"
                                     >
                                         Daftar
                                     </Link>
@@ -81,9 +81,9 @@ export default function PublicLayout({ children }) {
                             <h4 className="text-sm font-semibold text-slate-900">Bantuan</h4>
                             <ul className="mt-3 space-y-2 text-sm text-slate-500">
                                 <li>
-                                    <a href="mailto:halo@soundtix.id" className="hover:text-indigo-600 transition-colors">
+                                    <Link href="/contact" className="hover:text-indigo-600 transition-colors">
                                         Hubungi SoundTix
-                                    </a>
+                                    </Link>
                                 </li>
                                 <li><Link href="/organizer-info" className="hover:text-indigo-600 transition-colors">Informasi Penyelenggara</Link></li>
                             </ul>

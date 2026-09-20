@@ -1,3 +1,4 @@
+import { Link } from '@inertiajs/react';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/ui/StatCard';
 
@@ -13,10 +14,28 @@ export default function Customer({ stats }) {
             </div>
 
             <Panel>
-                <p className="text-sm text-slate-500">
-                    Pemesanan tiket akan tersedia di milestone berikutnya. Nantikan browsing event & checkout di
-                    halaman ini.
-                </p>
+                <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+                    <div>
+                        <p className="font-medium text-slate-800">Temukan konser berikutnya</p>
+                        <p className="mt-1 text-sm text-slate-500">
+                            Jelajahi event tayang atau lihat tiket yang sudah Anda miliki.
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                        <Link
+                            href="/"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition-all shadow-sm"
+                        >
+                            Cari Event
+                        </Link>
+                        <Link
+                            href="/orders"
+                            className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-sm font-medium py-2.5 px-5 rounded-lg transition-all"
+                        >
+                            Tiket Saya
+                        </Link>
+                    </div>
+                </div>
             </Panel>
         </AppLayout>
     );

@@ -56,6 +56,11 @@ class Event extends Model
         return $this->hasMany(TicketCategory::class);
     }
 
+    public function payouts(): HasMany
+    {
+        return $this->hasMany(Payout::class);
+    }
+
     public function scopePublished(Builder $query): Builder
     {
         return $query->where('status', 'published');

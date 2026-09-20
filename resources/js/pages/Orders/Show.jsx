@@ -105,7 +105,9 @@ export default function Show({ order }) {
                                     )}
                                 </div>
                                 <div className="px-5 py-5 flex items-center gap-5">
-                                    <QRCodeSVG value={ticket.qr_payload} size={112} level="M" className="rounded-lg" />
+                                    <div className="shrink-0 rounded-lg bg-white p-2 shadow-inner">
+                                    <QRCodeSVG value={ticket.qr_payload} size={176} level="M" />
+                                </div>
                                     <p className="text-sm text-slate-500">
                                         Tunjukkan QR ini kepada petugas saat masuk venue untuk validasi.
                                     </p>

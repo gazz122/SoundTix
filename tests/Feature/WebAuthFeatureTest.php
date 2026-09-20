@@ -100,7 +100,7 @@ class WebAuthFeatureTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->component('Dashboard/Organizer'));
     }
 
-    public function test_gatekeeper_reaches_dashboard(): void
+    public function test_gatekeeper_login_redirects_to_scanner(): void
     {
         User::factory()->gatekeeper()->create([
             'email' => 'gatekeeper@example.com',
@@ -110,7 +110,7 @@ class WebAuthFeatureTest extends TestCase
         $this->post('/login', [
             'email' => 'gatekeeper@example.com',
             'password' => 'password',
-        ])->assertRedirect(route('dashboard'));
+        ])->assertRedirect(route('dashboard.scan'));
 
         $this->assertAuthenticatedAs(User::where('email', 'gatekeeper@example.com')->first());
     }
@@ -157,7 +157,24 @@ class WebAuthFeatureTest extends TestCase
             'phone' => '081234567890',
             'password' => 'password',
             'password_confirmation' => 'password',
+        ])->assertRedirect(route('dashboard'));
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'sinta@example.com',
             'role' => 'customer',
+        ]);
+
+        $this->assertAuthenticated();
+    }
+
+    public function test_register_assigned_role_is_ignored(): void
+    {
+        $this->post('/register', [
+            'name' => 'Sinta Putri',
+            'email' => 'sinta@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'role' => 'organizer',
         ])->assertRedirect(route('dashboard'));
 
         $this->assertDatabaseHas('users', [
@@ -176,9 +193,14 @@ class WebAuthFeatureTest extends TestCase
             'password' => 'password',
             'password_confirmation' => 'password',
             'role' => 'admin',
-        ])->assertSessionHasErrors('role');
+        ])->assertRedirect(route('dashboard'));
 
-        $this->assertGuest('web');
+        $this->assertDatabaseHas('users', [
+            'email' => 'nakal@example.com',
+            'role' => 'customer',
+        ]);
+
+        $this->assertAuthenticated();
     }
 
     public function test_register_rejects_gatekeeper_role(): void
@@ -189,9 +211,14 @@ class WebAuthFeatureTest extends TestCase
             'password' => 'password',
             'password_confirmation' => 'password',
             'role' => 'gatekeeper',
-        ])->assertSessionHasErrors('role');
+        ])->assertRedirect(route('dashboard'));
 
-        $this->assertGuest('web');
+        $this->assertDatabaseHas('users', [
+            'email' => 'nakal2@example.com',
+            'role' => 'customer',
+        ]);
+
+        $this->assertAuthenticated();
     }
 
     public function test_logout_ends_session(): void

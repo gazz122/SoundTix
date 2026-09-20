@@ -29,12 +29,11 @@ class RegisteredUserController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')],
             'phone' => ['nullable', 'string', 'max:20'],
             'password' => ['required', 'string', 'confirmed', Password::defaults()],
-            'role' => ['sometimes', Rule::in(UserRole::selfRegistrable())],
         ]);
 
         $user = $this->users->create([
             ...$data,
-            'role' => $data['role'] ?? UserRole::Customer->value,
+            'role' => UserRole::Customer->value,
         ]);
 
         Auth::login($user);

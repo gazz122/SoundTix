@@ -1,7 +1,7 @@
-import { router, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import jsQR from 'jsqr';
 import { useEffect, useRef, useState } from 'react';
-import AppLayout from '@/components/AppLayout';
+import logo from '../../../../assets/logo.png';
 
 export default function Scanner() {
     const { flash } = usePage().props;
@@ -10,6 +10,7 @@ export default function Scanner() {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const streamRef = useRef(null);
+    const lastSubmitRef = useRef(null);
 
     const [cameraOn, setCameraOn] = useState(false);
     const [scanning, setScanning] = useState(false);
@@ -43,34 +44,85 @@ export default function Scanner() {
     };
 
     const submitScan = (code) => {
-        router.post('/gatekeeper/validate', { payload: code }, { preserveScroll: true });
+        router.post('/dashboard/scan/validate', { payload: code }, { preserveScroll: true });
     };
 
     useEffect(() => {
+        if (!cameraOn || !result) return;
+        setScanning(true);
+    }, [result, cameraOn]);
+
+    useEffect(() => {
         let animationFrame;
+        let absentFrames = 0;
 
-        const tick = () => {
+        const getDetector = () => {
+            if (!('BarcodeDetector' in window)) return null;
+
+            try {
+                return new BarcodeDetector({ formats: ['qr_code'] });
+            } catch {
+                try {
+                    return new BarcodeDetector({ formats: ['qr'] });
+                } catch {
+                    return null;
+                }
+            }
+        };
+
+        const detector = getDetector();
+
+        const tick = async () => {
             const video = videoRef.current;
-            const canvas = canvasRef.current;
 
-            if (video?.readyState === video.HAVE_ENOUGH_DATA && canvas) {
-                const width = Math.min(video.videoWidth, 640);
-                const scale = width / video.videoWidth;
-                const height = Math.round(video.videoHeight * scale);
+            if (video?.readyState === video.HAVE_ENOUGH_DATA) {
+                let raw = null;
 
-                canvas.width = width;
-                canvas.height = height;
+                if (detector) {
+                    try {
+                        const codes = await detector.detect(video);
+                        const code = codes.find((c) => c.format === 'qr_code' || c.format === 'qr');
+                        raw = code?.rawValue ?? null;
+                    } catch {
+                        // native detector hit an error; fall back to jsQR this frame
+                    }
+                }
 
-                const context = canvas.getContext('2d', { willReadFrequently: true });
-                context.drawImage(video, 0, 0, width, height);
+                if (raw === null) {
+                    const canvas = canvasRef.current;
 
-                const image = context.getImageData(0, 0, width, height);
-                const code = jsQR(image.data, width, height, { inversionAttempts: 'dontInvert' });
+                    if (canvas) {
+                        const width = Math.min(video.videoWidth, 640);
+                        const scale = width / video.videoWidth;
+                        const height = Math.round(video.videoHeight * scale);
 
-                if (code?.data) {
-                    setScanning(false);
-                    submitScan(code.data);
-                    return;
+                        canvas.width = width;
+                        canvas.height = height;
+
+                        const context = canvas.getContext('2d', { willReadFrequently: true });
+                        context.drawImage(video, 0, 0, width, height);
+
+                        const image = context.getImageData(0, 0, width, height);
+                        const code = jsQR(image.data, width, height, { inversionAttempts: 'dontInvert' });
+                        raw = code?.data ?? null;
+                    }
+                }
+
+                if (raw) {
+                    absentFrames = 0;
+
+                    if (lastSubmitRef.current !== raw) {
+                        lastSubmitRef.current = raw;
+                        setScanning(false);
+                        submitScan(raw);
+                        return;
+                    }
+                } else {
+                    absentFrames += 1;
+
+                    if (absentFrames >= 15) {
+                        lastSubmitRef.current = null;
+                    }
                 }
             }
 
@@ -88,26 +140,40 @@ export default function Scanner() {
 
     const submitManual = (event) => {
         event.preventDefault();
-        router.post('/gatekeeper/validate', { payload }, { preserveScroll: true });
+        router.post('/dashboard/scan/validate', { payload }, { preserveScroll: true });
     };
 
     return (
-        <AppLayout>
-            <div className="flex flex-col gap-6">
-                <header>
-                    <h1 className="text-2xl font-semibold text-slate-900">Scanner Tiket</h1>
-                    <p className="mt-1 text-slate-500">Pindai QR tiket untuk validasi masuk penonton.</p>
-                </header>
+        <div className="min-h-screen bg-slate-950 text-slate-800 font-sans">
+            <header className="border-b border-slate-800/60 bg-slate-950/95 backdrop-blur sticky top-0 z-20">
+                <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
+                    <Link href="/dashboard/scan" className="flex items-center gap-3">
+                        <img src={logo} alt="SoundTix" className="h-9 w-9 rounded-xl object-contain bg-white p-0.5" />
+                        <div>
+                            <p className="text-base font-semibold leading-tight text-white">Scanner Tiket</p>
+                            <p className="text-xs text-slate-400">Validasi masuk penonton</p>
+                        </div>
+                    </Link>
+                    <button
+                        type="button"
+                        onClick={() => router.post('/logout')}
+                        className="rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-300 transition-all hover:bg-slate-800 hover:text-white"
+                    >
+                        Keluar
+                    </button>
+                </div>
+            </header>
 
+            <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
                 {result && <ValidationResult result={result} />}
 
                 <div className="grid gap-6 lg:grid-cols-2">
-                    <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm">
-                        <div className="border-b border-slate-100 px-5 py-4">
-                            <h2 className="font-medium text-slate-900">Pindai dengan Kamera</h2>
+                    <div className="overflow-hidden rounded-xl border border-slate-800/60 bg-slate-900 shadow-lg">
+                        <div className="border-b border-slate-800 px-5 py-4">
+                            <h2 className="font-medium text-white">Pindai dengan Kamera</h2>
                         </div>
                         <div className="p-5">
-                            <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-slate-900">
+                            <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-slate-950">
                                 <video ref={videoRef} playsInline muted className="absolute inset-0 h-full w-full object-cover" />
                                 <canvas ref={canvasRef} className="hidden" />
                                 {!cameraOn && (
@@ -123,7 +189,7 @@ export default function Scanner() {
                                     <button
                                         type="button"
                                         onClick={stopCamera}
-                                        className="w-full bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 py-2.5 px-5 rounded-lg transition-all"
+                                        className="w-full bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 py-2.5 px-5 rounded-lg transition-all"
                                     >
                                         Hentikan Kamera
                                     </button>
@@ -138,17 +204,17 @@ export default function Scanner() {
                                 )}
                             </div>
 
-                            {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+                            {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
                         </div>
                     </div>
 
-                    <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm">
-                        <div className="border-b border-slate-100 px-5 py-4">
-                            <h2 className="font-medium text-slate-900">Input Manual</h2>
+                    <div className="overflow-hidden rounded-xl border border-slate-800/60 bg-slate-900 shadow-lg">
+                        <div className="border-b border-slate-800 px-5 py-4">
+                            <h2 className="font-medium text-white">Input Manual</h2>
                         </div>
                         <form onSubmit={submitManual} className="p-5 flex flex-col gap-4">
                             <div>
-                                <label htmlFor="payload" className="block text-sm font-medium text-slate-700 mb-1.5">
+                                <label htmlFor="payload" className="block text-sm font-medium text-slate-300 mb-1.5">
                                     Payload QR
                                 </label>
                                 <input
@@ -156,37 +222,37 @@ export default function Scanner() {
                                     type="text"
                                     value={payload}
                                     onChange={(event) => setPayload(event.target.value)}
-                                    className="w-full bg-white border border-slate-300 text-slate-900 placeholder-slate-400 rounded-lg px-4 py-2.5 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 transition-all"
+                                    className="w-full bg-slate-950 border border-slate-700 text-white placeholder-slate-500 rounded-lg px-4 py-2.5 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                                     placeholder="tempel payload QR dari tiket"
                                 />
-                                <p className="mt-1.5 text-xs text-slate-500">
+                                <p className="mt-1.5 text-xs text-slate-400">
                                     Untuk pengecekan cepat tanpa kamera, mis. dari email tiket atau saat demo.
                                 </p>
                             </div>
                             <button
                                 type="submit"
-                                className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 py-2.5 px-5 rounded-lg transition-all"
+                                className="bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 py-2.5 px-5 rounded-lg transition-all"
                             >
                                 Validasi Manual
                             </button>
                         </form>
                     </div>
                 </div>
-            </div>
-        </AppLayout>
+            </main>
+        </div>
     );
 }
 
 function ValidationResult({ result }) {
     const accepted = result.status === 'success';
     const panelClass = accepted
-        ? 'bg-emerald-50 border-emerald-200'
-        : 'bg-red-50 border-red-200';
-    const badgeClass = accepted ? 'bg-emerald-600' : 'bg-red-600';
-    const accentClass = accepted ? 'text-emerald-900' : 'text-red-900';
+        ? 'bg-emerald-500/10 border-emerald-500/30'
+        : 'bg-red-500/10 border-red-500/30';
+    const badgeClass = accepted ? 'bg-emerald-500' : 'bg-red-500';
+    const accentClass = accepted ? 'text-emerald-300' : 'text-red-300';
 
     return (
-        <div className={`border rounded-xl p-5 shadow-sm ${panelClass}`}>
+        <div className={`border rounded-xl p-5 shadow-lg ${panelClass}`}>
             <div className="flex items-center gap-3">
                 <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white font-bold ${badgeClass}`}>
                     {accepted ? '✓' : '!'}
@@ -194,7 +260,7 @@ function ValidationResult({ result }) {
                 <div>
                     <p className={`font-semibold ${accentClass}`}>{result.message}</p>
                     {result.ticket && (
-                        <p className={`mt-0.5 text-sm ${accepted ? 'text-emerald-700' : 'text-red-700'}`}>
+                        <p className={`mt-0.5 text-sm ${accepted ? 'text-emerald-400' : 'text-red-400'}`}>
                             {result.ticket.status_label} · {result.ticket.event_title}
                         </p>
                     )}
@@ -202,7 +268,7 @@ function ValidationResult({ result }) {
             </div>
 
             {result.ticket && accepted && (
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-200">
                     <Detail label="Event" value={result.ticket.event_title} />
                     <Detail label="Tanggal" value={formatDate(result.ticket.event_date)} />
                     <Detail label="Kategori" value={result.ticket.category} />
@@ -218,8 +284,8 @@ function ValidationResult({ result }) {
 function Detail({ label, value }) {
     return (
         <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-slate-500">{label}</p>
-            <p className="mt-0.5 font-medium text-slate-800">{value}</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-slate-400">{label}</p>
+            <p className="mt-0.5 font-medium text-slate-100">{value}</p>
         </div>
     );
 }

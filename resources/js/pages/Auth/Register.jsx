@@ -1,10 +1,5 @@
 import { Link, useForm } from '@inertiajs/react';
 
-const roles = [
-    { value: 'customer', label: 'Customer', description: 'Beli tiket konser & kelola e-ticket' },
-    { value: 'organizer', label: 'Event Organizer', description: 'Buat event & kelola penjualan tiket' },
-];
-
 export default function Register() {
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
@@ -12,7 +7,6 @@ export default function Register() {
         phone: '',
         password: '',
         password_confirmation: '',
-        role: 'customer',
     });
 
     function submit(event) {
@@ -28,7 +22,7 @@ export default function Register() {
                         S
                     </div>
                     <h1 className="text-2xl font-semibold text-slate-900">Daftar Akun Baru</h1>
-                    <p className="mt-1 text-sm text-slate-500">Bergabung sebagai customer atau organizer.</p>
+                    <p className="mt-1 text-sm text-slate-500">Buat akun untuk mulai membeli tiket konser.</p>
                 </div>
 
                 <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm p-6 sm:p-8">
@@ -80,36 +74,6 @@ export default function Register() {
                             placeholder="Ulangi password"
                             autoComplete="new-password"
                         />
-
-                        <div className="space-y-2">
-                            <label className="block text-sm font-medium text-slate-700">Daftar sebagai</label>
-                            <div className="grid gap-3">
-                                {roles.map((role) => (
-                                    <label
-                                        key={role.value}
-                                        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-all ${
-                                            data.role === role.value
-                                                ? 'border-indigo-600 bg-indigo-50/60 ring-1 ring-indigo-600'
-                                                : 'border-slate-300 bg-white hover:border-slate-400'
-                                        }`}
-                                    >
-                                        <input
-                                            type="radio"
-                                            name="role"
-                                            value={role.value}
-                                            checked={data.role === role.value}
-                                            onChange={() => setData('role', role.value)}
-                                            className="mt-1 h-4 w-4 accent-indigo-600"
-                                        />
-                                        <span>
-                                            <span className="block text-sm font-medium text-slate-800">{role.label}</span>
-                                            <span className="block text-xs text-slate-500">{role.description}</span>
-                                        </span>
-                                    </label>
-                                ))}
-                            </div>
-                            {errors.role && <p className="text-sm text-rose-600">{errors.role}</p>}
-                        </div>
 
                         <div className="flex items-center justify-between pt-1">
                             <button

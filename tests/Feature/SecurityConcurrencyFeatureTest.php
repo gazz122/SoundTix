@@ -25,9 +25,17 @@ class SecurityConcurrencyFeatureTest extends TestCase
             'password' => 'secret123',
             'password_confirmation' => 'secret123',
             'role' => 'admin',
-        ])->assertSessionHasErrors('role');
+        ])->assertRedirect(route('dashboard'));
 
-        $this->assertDatabaseMissing('users', ['email' => 'not-admin@example.com']);
+        $this->assertDatabaseMissing('users', [
+            'email' => 'not-admin@example.com',
+            'role' => 'admin',
+        ]);
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'not-admin@example.com',
+            'role' => 'customer',
+        ]);
     }
 
     public function test_ticket_consumption_is_atomic_for_repeated_validation(): void

@@ -15,8 +15,7 @@ const navigation = {
         { label: 'Laporan', href: '/organizer/reports' },
     ],
     gatekeeper: [
-        { label: 'Dashboard', href: '/dashboard' },
-        { label: 'Scanner', href: '/gatekeeper/scanner' },
+        { label: 'Scan Tiket', href: '/dashboard/scan' },
     ],
     admin: [
         { label: 'Dashboard', href: '/dashboard' },

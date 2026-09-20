@@ -63,7 +63,15 @@ class GatekeeperValidationFeatureTest extends TestCase
     public function test_gatekeeper_can_open_scanner_page(): void
     {
         $this->actingAs($this->gatekeeper())
-            ->get('/gatekeeper/scanner')
+            ->get('/dashboard/scan')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Gatekeeper/Scanner'));
+    }
+
+    public function test_organizer_can_open_scanner_page(): void
+    {
+        $this->actingAs(User::factory()->organizer()->create())
+            ->get('/dashboard/scan')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->component('Gatekeeper/Scanner'));
     }
@@ -71,19 +79,20 @@ class GatekeeperValidationFeatureTest extends TestCase
     public function test_admin_cannot_open_scanner_page(): void
     {
         $this->actingAs(User::factory()->admin()->create())
-            ->get('/gatekeeper/scanner')
+            ->get('/dashboard/scan')
             ->assertForbidden();
     }
 
-    public function test_customer_and_organizer_cannot_open_scanner(): void
+    public function test_customer_cannot_open_scanner_page(): void
     {
-        $this->actingAs(User::factory()->create())->get('/gatekeeper/scanner')->assertForbidden();
-        $this->actingAs(User::factory()->organizer()->create())->get('/gatekeeper/scanner')->assertForbidden();
+        $this->actingAs(User::factory()->create())
+            ->get('/dashboard/scan')
+            ->assertForbidden();
     }
 
     public function test_guest_redirected_to_login_when_opening_scanner(): void
     {
-        $this->get('/gatekeeper/scanner')->assertRedirect('/login');
+        $this->get('/dashboard/scan')->assertRedirect('/login');
     }
 
     public function test_validating_active_ticket_marks_it_used_and_records_validator(): void
@@ -92,7 +101,7 @@ class GatekeeperValidationFeatureTest extends TestCase
         $gatekeeper = $this->gatekeeper();
 
         $this->actingAs($gatekeeper)
-            ->post('/gatekeeper/validate', ['payload' => $ticket->qr_payload])
+            ->post('/dashboard/scan/validate', ['payload' => $ticket->qr_payload])
             ->assertRedirect()
             ->assertSessionHas('scan_result.status', 'success');
 
@@ -107,11 +116,11 @@ class GatekeeperValidationFeatureTest extends TestCase
         $ticket = $this->activeTicket();
         $gatekeeper = $this->gatekeeper();
 
-        $this->actingAs($gatekeeper)->post('/gatekeeper/validate', ['payload' => $ticket->qr_payload]);
+        $this->actingAs($gatekeeper)->post('/dashboard/scan/validate', ['payload' => $ticket->qr_payload]);
         $usedAt = $ticket->fresh()->used_at;
 
         $this->actingAs($gatekeeper)
-            ->post('/gatekeeper/validate', ['payload' => $ticket->qr_payload])
+            ->post('/dashboard/scan/validate', ['payload' => $ticket->qr_payload])
             ->assertSessionHas('scan_result.status', 'used');
 
         $stillUsed = $ticket->fresh();
@@ -126,7 +135,7 @@ class GatekeeperValidationFeatureTest extends TestCase
         $tampered = "FAKECODE.{$orderId}.{$orderItemId}.{$hmac}";
 
         $this->actingAs($this->gatekeeper())
-            ->post('/gatekeeper/validate', ['payload' => $tampered])
+            ->post('/dashboard/scan/validate', ['payload' => $tampered])
             ->assertSessionHas('scan_result.status', 'invalid');
 
         $this->assertSame('active', $ticket->fresh()->status);
@@ -152,7 +161,7 @@ class GatekeeperValidationFeatureTest extends TestCase
         $payload = $this->signedPayload('UNKNOWNCODE', $order->id, $unknown->id);
 
         $this->actingAs($this->gatekeeper())
-            ->post('/gatekeeper/validate', ['payload' => $payload])
+            ->post('/dashboard/scan/validate', ['payload' => $payload])
             ->assertSessionHas('scan_result.status', 'invalid');
 
         $this->assertSame(0, Ticket::count());
@@ -162,11 +171,11 @@ class GatekeeperValidationFeatureTest extends TestCase
     public function test_payload_is_required_and_must_be_string(): void
     {
         $this->actingAs($this->gatekeeper())
-            ->post('/gatekeeper/validate', ['payload' => ''])
+            ->post('/dashboard/scan/validate', ['payload' => ''])
             ->assertSessionHasErrors('payload');
 
         $this->actingAs($this->gatekeeper())
-            ->post('/gatekeeper/validate')
+            ->post('/dashboard/scan/validate')
             ->assertSessionHasErrors('payload');
     }
 }

@@ -9,6 +9,7 @@ use App\Repositories\OrderRepository;
 use App\Repositories\TicketCategoryRepository;
 use App\Repositories\TicketRepository;
 use App\Repositories\UserRepository;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -23,7 +24,7 @@ class DashboardController extends Controller
         private UserRepository $users,
     ) {}
 
-    public function __invoke(Request $request): Response
+    public function __invoke(Request $request): Response|RedirectResponse
     {
         $user = $request->user();
 
@@ -45,10 +46,7 @@ class DashboardController extends Controller
                     ->values()
                     ->all(),
             ]),
-            UserRole::Gatekeeper => Inertia::render('Dashboard/Organizer', [
-                'stats' => $this->gatekeeperStats($user->id),
-                'dashboard_mode' => 'gatekeeper',
-            ]),
+            UserRole::Gatekeeper => redirect()->route('dashboard.scan'),
             default => Inertia::render('Dashboard/Customer', [
                 'stats' => $this->customerStats($user->id),
             ]),
@@ -84,18 +82,6 @@ class DashboardController extends Controller
             'total_events' => $this->events->countAll(),
             'pending_events' => $this->events->countByStatus(EventStatus::Pending->value),
             'revenue' => $this->orders->paidRevenue(),
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function gatekeeperStats(int $userId): array
-    {
-        return [
-            'validated_today' => $this->tickets->countValidatedBySince($userId, today()),
-            'validated_total' => $this->tickets->countValidatedBy($userId),
-            'active_tickets' => $this->tickets->countActive(),
         ];
     }
 

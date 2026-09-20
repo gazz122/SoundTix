@@ -1,5 +1,6 @@
 import { Link, useForm, usePage } from '@inertiajs/react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import CartDrawer from '@/components/CartDrawer';
 import PublicLayout from '@/components/PublicLayout';
 import { formatDate, rupiah } from '@/lib/format';
 
@@ -112,6 +113,7 @@ function TicketCta({ user }) {
 
 function TicketOrder({ event }) {
     const categories = event.ticket_categories;
+    const [drawerOpen, setDrawerOpen] = useState(false);
 
     const { data, setData, post, processing, errors, transform } = useForm({
         items: categories.map((category) => ({ category_id: category.id, quantity: 0 })),
@@ -122,6 +124,18 @@ function TicketOrder({ event }) {
             .filter((item) => Number(item.quantity) > 0)
             .map((item) => ({ category_id: item.category_id, quantity: Number(item.quantity) })),
     }));
+
+    const selectedItems = useMemo(
+        () =>
+            data.items
+                .filter((item) => Number(item.quantity) > 0)
+                .map((item) => {
+                    const category = categories.find((entry) => entry.id === item.category_id);
+                    return category ? { ...category, quantity: Number(item.quantity) } : null;
+                })
+                .filter(Boolean),
+        [data.items, categories],
+    );
 
     const totalQuantity = useMemo(
         () => data.items.reduce((sum, item) => sum + Number(item.quantity), 0),
@@ -154,93 +168,110 @@ function TicketOrder({ event }) {
     }
 
     function submit(eventSubmit) {
-        eventSubmit.preventDefault();
+        eventSubmit?.preventDefault?.();
         post(`/events/${event.slug}/order`, { preserveScroll: true });
     }
 
-    const submitDisabled = processing || totalQuantity === 0 || overLimit;
+    function openDrawer() {
+        if (totalQuantity > 0 && !overLimit) {
+            setDrawerOpen(true);
+        }
+    }
 
     return (
-        <form onSubmit={submit} className="mt-3 grid gap-4 lg:grid-cols-3">
-            <div className="lg:col-span-2 rounded-xl border border-slate-200/80 overflow-hidden">
-                <div className="divide-y divide-slate-200/80 bg-white">
-                    {categories.map((category, index) => {
-                        const cap = Math.min(category.max_per_order, category.available_quantity);
-                        const quantity = data.items.find((item) => item.category_id === category.id)?.quantity ?? 0;
+        <>
+            <form onSubmit={submit} className="mt-3 grid gap-4 lg:grid-cols-3">
+                <div className="lg:col-span-2 rounded-xl border border-slate-200/80 overflow-hidden">
+                    <div className="divide-y divide-slate-200/80 bg-white">
+                        {categories.map((category, index) => {
+                            const cap = Math.min(category.max_per_order, category.available_quantity);
+                            const quantity = data.items.find((item) => item.category_id === category.id)?.quantity ?? 0;
 
-                        return (
-                            <div key={category.id} className="px-4 py-3">
-                                <div className="flex flex-wrap items-center justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <p className="font-medium text-slate-900">{category.name}</p>
-                                        <p className="text-xs text-slate-400">
-                                            {category.available_quantity === 0
-                                                ? 'Habis terjual'
-                                                : `Sisa ${category.available_quantity} · maks. ${category.max_per_order} per transaksi`}
-                                        </p>
+                            return (
+                                <div key={category.id} className="px-4 py-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <p className="font-medium text-slate-900">{category.name}</p>
+                                            <p className="text-xs text-slate-400">
+                                                {category.available_quantity === 0
+                                                    ? 'Habis terjual'
+                                                    : `Sisa ${category.available_quantity} · maks. ${category.max_per_order} per transaksi`}
+                                            </p>
+                                        </div>
+                                        <p className="text-indigo-600 font-semibold">{rupiah(category.price)}</p>
+                                        <Stepper
+                                            value={Number(quantity)}
+                                            disabled={category.available_quantity === 0}
+                                            onChange={(next) => changeQuantity(category.id, next)}
+                                            cap={cap}
+                                        />
                                     </div>
-                                    <p className="text-indigo-600 font-semibold">{rupiah(category.price)}</p>
-                                    <Stepper
-                                        value={Number(quantity)}
-                                        disabled={category.available_quantity === 0}
-                                        onChange={(next) => changeQuantity(category.id, next)}
-                                        cap={cap}
-                                    />
+                                    <p className="mt-1 text-sm text-rose-600">
+                                        {errors[`items.${index}.quantity`]}
+                                    </p>
                                 </div>
-                                <p className="mt-1 text-sm text-rose-600">
-                                    {errors[`items.${index}.quantity`]}
-                                </p>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-
-            <div className="bg-white border border-slate-200/80 rounded-xl shadow-sm p-5 h-fit">
-                <h3 className="font-semibold text-slate-900">Ringkasan Pesanan</h3>
-                <ul className="mt-3 space-y-2 text-sm">
-                    {data.items.map((item) => {
-                        const category = categories.find((entry) => entry.id === item.category_id);
-                        if (!category || Number(item.quantity) === 0) return null;
-
-                        return (
-                            <li key={item.category_id} className="flex items-center justify-between gap-2 text-slate-600">
-                                <span>
-                                    {category.name} × {item.quantity}
-                                </span>
-                                <span className="text-slate-900 font-medium">
-                                    {rupiah(category.price * Number(item.quantity))}
-                                </span>
-                            </li>
-                        );
-                    })}
-                </ul>
-
-                <div className="mt-4 flex items-center justify-between border-t border-slate-200/80 pt-3">
-                    <span className="text-sm font-medium text-slate-700">Total</span>
-                    <span className="text-xl font-semibold text-slate-900">{rupiah(grandTotal)}</span>
+                            );
+                        })}
+                    </div>
                 </div>
 
-                {overLimit && (
-                    <p className="mt-2 text-sm text-rose-600">Maksimal 5 tiket per transaksi.</p>
-                )}
-                {totalQuantity === 0 && (
-                    <p className="mt-2 text-sm text-slate-400">Pilih minimal satu tiket untuk memesan.</p>
-                )}
-                {errors.items && <p className="mt-2 text-sm text-rose-600">{errors.items}</p>}
+                <div className="bg-white border border-slate-200/80 rounded-xl shadow-sm p-5 h-fit">
+                    <h3 className="font-semibold text-slate-900">Ringkasan Pesanan</h3>
+                    <ul className="mt-3 space-y-2 text-sm">
+                        {data.items.map((item) => {
+                            const category = categories.find((entry) => entry.id === item.category_id);
+                            if (!category || Number(item.quantity) === 0) return null;
 
-                <button
-                    type="submit"
-                    disabled={submitDisabled}
-                    className="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-5 rounded-lg transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                    {processing ? 'Memproses...' : 'Pesan Sekarang'}
-                </button>
-                <p className="mt-2 text-xs text-slate-400">
-                    Pesanan berlaku 15 menit. Batas 5 tiket per transaksi.
-                </p>
-            </div>
-        </form>
+                            return (
+                                <li key={item.category_id} className="flex items-center justify-between gap-2 text-slate-600">
+                                    <span>
+                                        {category.name} × {item.quantity}
+                                    </span>
+                                    <span className="text-slate-900 font-medium">
+                                        {rupiah(category.price * Number(item.quantity))}
+                                    </span>
+                                </li>
+                            );
+                        })}
+                    </ul>
+
+                    <div className="mt-4 flex items-center justify-between border-t border-slate-200/80 pt-3">
+                        <span className="text-sm font-medium text-slate-700">Total</span>
+                        <span className="text-xl font-semibold text-slate-900">{rupiah(grandTotal)}</span>
+                    </div>
+
+                    {overLimit && (
+                        <p className="mt-2 text-sm text-rose-600">Maksimal 5 tiket per transaksi.</p>
+                    )}
+                    {totalQuantity === 0 && (
+                        <p className="mt-2 text-sm text-slate-400">Pilih minimal satu tiket untuk memesan.</p>
+                    )}
+                    {errors.items && <p className="mt-2 text-sm text-rose-600">{errors.items}</p>}
+
+                    <button
+                        type="button"
+                        onClick={openDrawer}
+                        disabled={totalQuantity === 0 || overLimit}
+                        className="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-5 rounded-lg transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                        Lanjut ke Pembayaran
+                    </button>
+                    <p className="mt-2 text-xs text-slate-400">
+                        Pesanan berlaku 15 menit. Batas 5 tiket per transaksi.
+                    </p>
+                </div>
+            </form>
+
+            <CartDrawer
+                open={drawerOpen}
+                onClose={() => setDrawerOpen(false)}
+                event={event}
+                items={selectedItems}
+                processing={processing}
+                onCheckout={submit}
+                onExpire={() => setDrawerOpen(false)}
+            />
+        </>
     );
 }
 

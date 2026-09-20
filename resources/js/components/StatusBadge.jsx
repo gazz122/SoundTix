@@ -4,6 +4,7 @@ const map = {
     published: { label: 'Published', classes: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
     rejected: { label: 'Ditolak', classes: 'bg-rose-50 text-rose-700 border-rose-200' },
     cancelled: { label: 'Dibatalkan', classes: 'bg-slate-100 text-slate-600 border-slate-200' },
+    completed: { label: 'Selesai', classes: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
 };
 
 export default function StatusBadge({ status }) {

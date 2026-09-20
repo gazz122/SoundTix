@@ -18,7 +18,6 @@ class AuthFeatureTest extends TestCase
             'password' => 'secret123',
             'password_confirmation' => 'secret123',
             'phone' => '081234567890',
-            'role' => 'customer',
         ]);
 
         $response->assertCreated()
@@ -32,7 +31,7 @@ class AuthFeatureTest extends TestCase
         ]);
     }
 
-    public function test_organizer_can_register(): void
+    public function test_register_ignores_submitted_role_and_creates_customer(): void
     {
         $response = $this->postJson('/api/v1/register', [
             'name' => 'Promotor Aneka',
@@ -42,10 +41,15 @@ class AuthFeatureTest extends TestCase
             'role' => 'organizer',
         ]);
 
-        $response->assertCreated()->assertJsonPath('user.role', 'organizer');
+        $response->assertCreated()->assertJsonPath('user.role', 'customer');
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'promotor@example.com',
+            'role' => 'customer',
+        ]);
     }
 
-    public function test_register_rejects_admin_role(): void
+    public function test_register_ignores_admin_role(): void
     {
         $response = $this->postJson('/api/v1/register', [
             'name' => 'Nakal',
@@ -55,10 +59,15 @@ class AuthFeatureTest extends TestCase
             'role' => 'admin',
         ]);
 
-        $response->assertUnprocessable()->assertJsonValidationErrors('role');
+        $response->assertCreated()->assertJsonPath('user.role', 'customer');
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'nakal@example.com',
+            'role' => 'customer',
+        ]);
     }
 
-    public function test_register_rejects_gatekeeper_role(): void
+    public function test_register_ignores_gatekeeper_role(): void
     {
         $response = $this->postJson('/api/v1/register', [
             'name' => 'Nakal',
@@ -68,7 +77,12 @@ class AuthFeatureTest extends TestCase
             'role' => 'gatekeeper',
         ]);
 
-        $response->assertUnprocessable()->assertJsonValidationErrors('role');
+        $response->assertCreated()->assertJsonPath('user.role', 'customer');
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'nakal@example.com',
+            'role' => 'customer',
+        ]);
     }
 
     public function test_register_rejects_duplicate_email(): void

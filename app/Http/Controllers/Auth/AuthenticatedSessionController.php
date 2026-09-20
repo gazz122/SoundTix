@@ -50,6 +50,10 @@ class AuthenticatedSessionController extends Controller
             abort(403, 'Akses admin dibatasi hanya untuk email pada whitelist sistem.');
         }
 
+        if ($user->role === UserRole::Gatekeeper) {
+            return redirect()->route('dashboard.scan');
+        }
+
         return redirect()->intended(route('dashboard'));
     }
 

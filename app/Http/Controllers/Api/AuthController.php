@@ -23,12 +23,11 @@ class AuthController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')],
             'password' => ['required', 'string', 'confirmed', Password::defaults()],
             'phone' => ['nullable', 'string', 'max:20'],
-            'role' => ['sometimes', Rule::in(UserRole::selfRegistrable())],
         ]);
 
         $user = $this->users->create([
             ...$data,
-            'role' => $data['role'] ?? UserRole::Customer->value,
+            'role' => UserRole::Customer->value,
         ]);
 
         return response()->json([

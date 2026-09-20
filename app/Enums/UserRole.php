@@ -20,20 +20,12 @@ enum UserRole: string
     }
 
     /**
-     * @return array<int, string>
-     */
-    public static function selfRegistrable(): array
-    {
-        return [self::Customer->value, self::Organizer->value];
-    }
-
-    /**
      * Roles that can be assigned to accounts managed by the admin (never Admin).
      *
      * @return array<int, string>
      */
     public static function manageable(): array
     {
-        return [...self::selfRegistrable(), self::Gatekeeper->value];
+        return [self::Customer->value, self::Organizer->value, self::Gatekeeper->value];
     }
 }

@@ -19,6 +19,7 @@ use Inertia\Inertia;
 Route::get('/', [EventController::class, 'index'])->name('home');
 Route::get('/events/{event:slug}', [EventController::class, 'show'])->name('events.show');
 Route::get('/about', fn () => Inertia::render('About'))->name('about');
+Route::get('/contact', fn () => Inertia::render('Contact'))->name('contact');
 Route::get('/organizer-guide', fn () => Inertia::render('OrganizerGuide'))->name('organizer.guide');
 Route::get('/organizer-info', fn () => Inertia::render('OrganizerInfo'))->name('organizer.info');
 
@@ -36,13 +37,16 @@ Route::middleware('auth')->group(function () {
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
 
-    Route::middleware('role:organizer')->prefix('organizer')->name('organizer.')->group(function () {
+    Route::middleware(['role:organizer,gatekeeper', 'redirect.gatekeepers'])->prefix('organizer')->name('organizer.')->group(function () {
         Route::get('/events', [OrganizerEventController::class, 'index'])->name('events.index');
         Route::get('/events/create', [OrganizerEventController::class, 'create'])->name('events.create');
         Route::post('/events', [OrganizerEventController::class, 'store'])->name('events.store');
+        Route::post('/events/{event}/submit', [OrganizerEventController::class, 'submit'])->name('events.submit');
+    });
+
+    Route::middleware('role:organizer')->prefix('organizer')->name('organizer.')->group(function () {
         Route::get('/events/{event}/edit', [OrganizerEventController::class, 'edit'])->name('events.edit');
         Route::put('/events/{event}', [OrganizerEventController::class, 'update'])->name('events.update');
-        Route::post('/events/{event}/submit', [OrganizerEventController::class, 'submit'])->name('events.submit');
 
         Route::get('/reports', [OrganizerReportController::class, 'index'])->name('reports.index');
         Route::get('/reports/csv', [OrganizerReportController::class, 'csv'])->name('reports.csv');
@@ -68,9 +72,9 @@ Route::middleware('auth')->group(function () {
         Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('users.update');
     });
 
-    Route::middleware('role:gatekeeper')->prefix('gatekeeper')->name('gatekeeper.')->group(function () {
-        Route::get('/scanner', [GatekeeperScannerController::class, 'index'])->name('scanner');
-        Route::post('/validate', [GatekeeperScannerController::class, 'validate'])->name('validate');
+    Route::middleware('role:organizer,gatekeeper')->prefix('dashboard')->name('dashboard.')->group(function () {
+        Route::get('/scan', [GatekeeperScannerController::class, 'index'])->name('scan');
+        Route::post('/scan/validate', [GatekeeperScannerController::class, 'validate'])->name('scan.validate');
     });
 
     Route::middleware('role:customer')->name('orders.')->group(function () {

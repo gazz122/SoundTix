@@ -24,7 +24,7 @@ export default function HeroCarousel({ events }) {
 
     return (
         <section
-            className="relative overflow-hidden rounded-2xl bg-slate-900 shadow-sm aspect-[10/3]"
+            className="relative overflow-hidden rounded-2xl bg-slate-900 shadow-sm aspect-[4/3] sm:aspect-[16/7] lg:aspect-[10/3]"
             onMouseEnter={() => setPaused(true)}
             onMouseLeave={() => setPaused(false)}
             onTouchStart={(event) => { touchStartX.current = event.touches[0].clientX; }}

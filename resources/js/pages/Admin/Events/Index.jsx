@@ -8,6 +8,7 @@ const tabs = [
     { value: 'all', label: 'Semua' },
     { value: 'draft', label: 'Draft' },
     { value: 'published', label: 'Published' },
+    { value: 'completed', label: 'Selesai' },
     { value: 'rejected', label: 'Ditolak' },
 ];
 
