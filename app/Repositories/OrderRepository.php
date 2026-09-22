@@ -16,6 +16,7 @@ class OrderRepository
                 'orderItems.ticketCategory' => fn ($query) => $query->with('event:id,title,slug,event_date'),
                 'orderItems.tickets',
                 'payments',
+                'refunds',
             ])
             ->orderByDesc('created_at')
             ->get();
@@ -27,6 +28,7 @@ class OrderRepository
             'orderItems.ticketCategory.event:id,title,slug,event_date',
             'orderItems.tickets',
             'payments',
+            'refunds',
         ]);
     }
 

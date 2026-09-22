@@ -13,6 +13,8 @@ const navigation = {
         { label: 'Event Saya', href: '/organizer/events' },
         { label: 'Buat Event', href: '/organizer/events/create' },
         { label: 'Laporan', href: '/organizer/reports' },
+        { label: 'Refund', href: '/organizer/refunds' },
+        { label: 'Penarikan Dana', href: '/organizer/payouts' },
     ],
     gatekeeper: [
         { label: 'Scan Tiket', href: '/dashboard/scan' },
@@ -21,6 +23,8 @@ const navigation = {
         { label: 'Dashboard', href: '/dashboard' },
         { label: 'Verifikasi Event', href: '/admin/events' },
         { label: 'Kelola Pengguna', href: '/admin/users' },
+        { label: 'Penarikan Dana', href: '/admin/payouts' },
+        { label: 'Refund', href: '/admin/refunds' },
     ],
 };
 

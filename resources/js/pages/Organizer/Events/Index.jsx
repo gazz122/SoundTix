@@ -105,6 +105,13 @@ function EventItem({ event }) {
                         Lihat Halaman →
                     </Link>
                 )}
+
+                <Link
+                    href={`/organizer/events/${event.id}`}
+                    className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-sm font-medium py-2 px-4 rounded-lg transition-all"
+                >
+                    Detail
+                </Link>
             </div>
         </div>
     );

@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\AdminEventController;
+use App\Http\Controllers\AdminPayoutPageController;
+use App\Http\Controllers\AdminRefundPageController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\DashboardController;
@@ -9,7 +11,10 @@ use App\Http\Controllers\EventController;
 use App\Http\Controllers\GatekeeperScannerController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\Organizer\OrganizerRefundController;
 use App\Http\Controllers\OrganizerEventController;
+use App\Http\Controllers\OrganizerPayoutPageController;
+use App\Http\Controllers\OrganizerRefundPageController;
 use App\Http\Controllers\OrganizerReportController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\TicketCategoryController;
@@ -45,12 +50,19 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('role:organizer')->prefix('organizer')->name('organizer.')->group(function () {
+        Route::get('/events/{event}', [OrganizerEventController::class, 'show'])->name('events.show');
         Route::get('/events/{event}/edit', [OrganizerEventController::class, 'edit'])->name('events.edit');
         Route::put('/events/{event}', [OrganizerEventController::class, 'update'])->name('events.update');
+        Route::post('/events/{event}/cancel', [OrganizerRefundController::class, 'requestEventCancellation'])->name('events.cancel');
+
+        Route::get('/refunds', [OrganizerRefundPageController::class, 'index'])->name('refunds.index');
 
         Route::get('/reports', [OrganizerReportController::class, 'index'])->name('reports.index');
         Route::get('/reports/csv', [OrganizerReportController::class, 'csv'])->name('reports.csv');
         Route::get('/reports/print', [OrganizerReportController::class, 'print'])->name('reports.print');
+
+        Route::get('/payouts', [OrganizerPayoutPageController::class, 'index'])->name('payouts.index');
+        Route::post('/payouts/{event}/withdraw', [OrganizerPayoutPageController::class, 'withdraw'])->name('payouts.withdraw');
     });
 
     Route::middleware('role:organizer,admin')->prefix('organizer')->name('organizer.')->group(function () {
@@ -70,6 +82,15 @@ Route::middleware('auth')->group(function () {
         Route::post('/users', [AdminUserController::class, 'store'])->name('users.store');
         Route::get('/users/{user}/edit', [AdminUserController::class, 'edit'])->name('users.edit');
         Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('users.update');
+
+        Route::get('/payouts', [AdminPayoutPageController::class, 'index'])->name('payouts.index');
+        Route::post('/payouts/{payout}/approve', [AdminPayoutPageController::class, 'approve'])->name('payouts.approve');
+        Route::post('/payouts/{payout}/complete', [AdminPayoutPageController::class, 'complete'])->name('payouts.complete');
+
+        Route::get('/refunds', [AdminRefundPageController::class, 'index'])->name('refunds.index');
+        Route::post('/refunds/{refund}/approve', [AdminRefundPageController::class, 'approve'])->name('refunds.approve');
+        Route::post('/refunds/events/{event}/approve-cancellation', [AdminRefundPageController::class, 'approveCancellation'])->name('refunds.events.approve-cancellation');
+        Route::post('/refunds/events/{event}/reject-cancellation', [AdminRefundPageController::class, 'rejectCancellation'])->name('refunds.events.reject-cancellation');
     });
 
     Route::middleware('role:organizer,gatekeeper')->prefix('dashboard')->name('dashboard.')->group(function () {
@@ -81,6 +102,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/orders', [OrderController::class, 'index'])->name('index');
         Route::get('/orders/{order:order_code}', [OrderController::class, 'show'])->name('show');
         Route::post('/orders/{order:order_code}/cancel', [OrderController::class, 'cancel'])->name('cancel');
+        Route::post('/orders/{order:order_code}/refund', [OrderController::class, 'refund'])->name('refund');
         Route::post('/events/{slug}/order', [OrderController::class, 'store'])->name('store');
     });
 

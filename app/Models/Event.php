@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'end_time',
     'status',
     'rejection_reason',
+    'cancellation_reason',
 ])]
 class Event extends Model
 {

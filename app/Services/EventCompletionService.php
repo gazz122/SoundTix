@@ -18,4 +18,17 @@ class EventCompletionService
             ->whereDate('event_date', '<', now()->toDateString())
             ->update(['status' => EventStatus::Completed->value]);
     }
+
+    /**
+     * Lazily complete a single published event if its date has already passed.
+     * Ensures payout eligibility does not depend on the scheduled command.
+     */
+    public function completeIfPast(int $eventId): bool
+    {
+        return Event::query()
+            ->whereKey($eventId)
+            ->where('status', EventStatus::Published->value)
+            ->whereDate('event_date', '<', now()->toDateString())
+            ->update(['status' => EventStatus::Completed->value]) === 1;
+    }
 }

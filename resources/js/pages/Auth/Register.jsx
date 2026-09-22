@@ -1,4 +1,5 @@
 import { Link, useForm } from '@inertiajs/react';
+import logo from '../../../../assets/logo.png';
 
 export default function Register() {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -18,9 +19,7 @@ export default function Register() {
         <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex items-center justify-center px-4 py-10">
             <div className="w-full max-w-md">
                 <div className="mb-8 text-center">
-                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white text-2xl font-bold shadow-sm">
-                        S
-                    </div>
+                    <img src={logo} alt="SoundTix" className="mx-auto mb-4 h-14 w-14 rounded-2xl object-contain shadow-sm" />
                     <h1 className="text-2xl font-semibold text-slate-900">Daftar Akun Baru</h1>
                     <p className="mt-1 text-sm text-slate-500">Buat akun untuk mulai membeli tiket konser.</p>
                 </div>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\PaymentType;
+use App\Enums\RefundStatus;
 use App\Enums\TicketStatus;
 use App\Models\Event;
 use App\Models\Order;
@@ -99,6 +100,44 @@ class OrderController extends Controller
         });
 
         return redirect()->route('orders.show', $order->order_code)->with('success', 'Pesanan dibatalkan dan stok tiket dikembalikan.');
+    }
+
+    public function refund(Request $request, Order $order): RedirectResponse
+    {
+        $order = $this->guardOwned($request, $order);
+
+        if ($order->status !== OrderStatus::Paid->value) {
+            return redirect()->route('orders.show', $order->order_code)->with(
+                'error',
+                'Hanya pesanan yang sudah lunas yang dapat diajukan refund.',
+            );
+        }
+
+        $hasActiveRefund = $order->refunds()
+            ->whereIn('status', [RefundStatus::Pending->value, RefundStatus::Completed->value])
+            ->exists();
+
+        if ($hasActiveRefund) {
+            return redirect()->route('orders.show', $order->order_code)->with(
+                'error',
+                'Refund untuk pesanan ini sudah diajukan.',
+            );
+        }
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:255'],
+        ]);
+
+        $order->refunds()->create([
+            'amount' => $order->grand_total,
+            'status' => RefundStatus::Pending->value,
+            'reason' => $data['reason'],
+        ]);
+
+        return redirect()->route('orders.show', $order->order_code)->with(
+            'success',
+            'Pengajuan refund berhasil dikirim dan menunggu persetujuan admin.',
+        );
     }
 
     private function guardOwned(Request $request, Order $order): Order
@@ -262,6 +301,18 @@ class OrderController extends Controller
                     'status' => $payment->payment_status,
                     'status_label' => PaymentStatus::from($payment->payment_status)->label(),
                     'created_at' => $payment->created_at?->format('d M Y H:i'),
+                ])
+                ->all(),
+            'refunds' => $order->refunds
+                ->sortByDesc('created_at')
+                ->values()
+                ->map(fn ($refund) => [
+                    'id' => $refund->id,
+                    'amount' => (float) $refund->amount,
+                    'status' => $refund->status->value,
+                    'status_label' => $refund->status->label(),
+                    'reason' => $refund->reason,
+                    'created_at' => $refund->created_at?->format('d M Y H:i'),
                 ])
                 ->all(),
         ];

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\EventStatus;
 use App\Models\Event;
+use App\Models\Refund;
 use App\Repositories\EventRepository;
 use App\Repositories\PerformerRepository;
 use Illuminate\Http\RedirectResponse;
@@ -31,6 +32,38 @@ class OrganizerEventController extends Controller
         return Inertia::render('Organizer/Events/Index', [
             'events' => $events->map(fn (Event $event) => $this->serialize($event))->values()->all(),
         ]);
+    }
+
+    public function show(Request $request, int $id): Response
+    {
+        $event = $this->events->findOwnedByOrganizer($request->user()->id, $id);
+        $event->loadCount('ticketCategories')->load('performers:id,name');
+
+        $refunds = Refund::query()
+            ->whereHas('order.orderItems.ticketCategory.event', fn ($query) => $query->whereKey($id))
+            ->with('order.customer:id,name,email')
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn (Refund $refund) => [
+                'id' => $refund->id,
+                'amount' => (float) $refund->amount,
+                'status' => $refund->status->value,
+                'status_label' => $refund->status->label(),
+                'reason' => $refund->reason,
+                'created_at' => $refund->created_at?->format('d M Y H:i'),
+                'order_code' => $refund->order->order_code,
+                'customer_name' => $refund->order->customer?->name,
+            ])
+            ->values()
+            ->all();
+
+        $data = $this->serialize($event);
+        $data['cancellable'] = $event->status === EventStatus::Published->value
+            && ($event->event_date === null || ! $event->event_date->isPast());
+        $data['cancellation_reason'] = $event->cancellation_reason;
+        $data['refunds'] = $refunds;
+
+        return Inertia::render('Organizer/Events/Show', ['event' => $data]);
     }
 
     public function create(Request $request): Response

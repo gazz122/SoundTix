@@ -14,11 +14,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'organizer_id',
     'gross_amount',
     'platform_fee',
+    'refund_deductions',
     'net_amount',
     'bank_name',
     'account_number',
     'account_holder_name',
     'status',
+    'transfer_proof',
+    'admin_notes',
     'processed_at',
     'processed_by',
 ])]
@@ -47,6 +50,7 @@ class Payout extends Model
         return [
             'gross_amount' => 'decimal:2',
             'platform_fee' => 'decimal:2',
+            'refund_deductions' => 'decimal:2',
             'net_amount' => 'decimal:2',
             'status' => PayoutStatus::class,
             'processed_at' => 'datetime',

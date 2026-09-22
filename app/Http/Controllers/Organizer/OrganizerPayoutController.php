@@ -40,6 +40,7 @@ class OrganizerPayoutController extends Controller
             'event_id' => $payout->event_id,
             'gross_amount' => (float) $payout->gross_amount,
             'platform_fee' => (float) $payout->platform_fee,
+            'refund_deductions' => (float) $payout->refund_deductions,
             'net_amount' => (float) $payout->net_amount,
             'bank_name' => $payout->bank_name,
             'account_number' => $payout->account_number,

@@ -24,6 +24,7 @@ class PayoutFactory extends Factory
             'organizer_id' => User::factory(),
             'gross_amount' => $gross = fake()->numberBetween(5_000_000, 50_000_000),
             'platform_fee' => round($gross * 0.05, 2),
+            'refund_deductions' => 0,
             'net_amount' => $gross - round($gross * 0.05, 2),
             'bank_name' => fake()->randomElement(['BCA', 'BRI', 'Mandiri', 'BNI']),
             'account_number' => fake()->numerify('#########'),

@@ -33,4 +33,5 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('/admin')->group(funct
     Route::patch('/users/{user}', [UserController::class, 'update']);
     Route::get('/payouts', [AdminPayoutController::class, 'index']);
     Route::post('/payouts/{payoutId}/approve', [AdminPayoutController::class, 'approve']);
+    Route::post('/payouts/{payoutId}/complete', [AdminPayoutController::class, 'completePayout']);
 });

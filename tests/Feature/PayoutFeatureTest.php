@@ -7,6 +7,7 @@ use App\Models\Event;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payout;
+use App\Models\Refund;
 use App\Models\TicketCategory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -26,7 +27,10 @@ class PayoutFeatureTest extends TestCase
         $event = Event::factory()->completed()->create(['organizer_id' => $organizer->id]);
         $category = TicketCategory::factory()->create(['event_id' => $event->id, 'price' => $subtotal]);
 
-        $order = Order::factory()->paid()->create(['grand_total' => $subtotal]);
+        $order = Order::factory()->paid()->create([
+            'total_amount' => $subtotal,
+            'grand_total' => $subtotal,
+        ]);
         OrderItem::create([
             'order_id' => $order->id,
             'ticket_category_id' => $category->id,
@@ -72,7 +76,11 @@ class PayoutFeatureTest extends TestCase
         [$organizer, $event] = $this->completedEventWithRevenue(1_000_000);
         $category = $event->ticketCategories()->first();
 
-        $pendingOrder = Order::factory()->create(['status' => OrderStatus::Pending->value, 'grand_total' => 5_000_000]);
+        $pendingOrder = Order::factory()->create([
+            'status' => OrderStatus::Pending->value,
+            'total_amount' => 5_000_000,
+            'grand_total' => 5_000_000,
+        ]);
         OrderItem::create([
             'order_id' => $pendingOrder->id,
             'ticket_category_id' => $category->id,
@@ -99,6 +107,35 @@ class PayoutFeatureTest extends TestCase
             ->assertStatus(422);
 
         $this->assertDatabaseCount('payouts', 0);
+    }
+
+    public function test_past_published_event_is_completed_lazily_on_payout(): void
+    {
+        $organizer = User::factory()->organizer()->create();
+        $event = Event::factory()->published()->create([
+            'organizer_id' => $organizer->id,
+            'event_date' => now()->subDay()->toDateString(),
+        ]);
+        $category = TicketCategory::factory()->create(['event_id' => $event->id, 'price' => 500_000]);
+        $order = Order::factory()->paid()->create([
+            'total_amount' => 500_000,
+            'grand_total' => 500_000,
+        ]);
+        OrderItem::create([
+            'order_id' => $order->id,
+            'ticket_category_id' => $category->id,
+            'quantity' => 1,
+            'price_per_unit' => 500_000,
+            'subtotal' => 500_000,
+        ]);
+
+        Sanctum::actingAs($organizer);
+
+        $this->postJson("/api/v1/organizer/events/{$event->id}/payout", $this->bankPayload())
+            ->assertCreated()
+            ->assertJsonPath('payout.gross_amount', 500_000);
+
+        $this->assertSame('completed', $event->fresh()->status);
     }
 
     public function test_organizer_cannot_request_payout_twice(): void
@@ -189,5 +226,69 @@ class PayoutFeatureTest extends TestCase
         Sanctum::actingAs(User::factory()->organizer()->create());
 
         $this->getJson('/api/v1/admin/payouts')->assertForbidden();
+    }
+
+    public function test_completed_refunds_are_deducted_from_payout(): void
+    {
+        [$organizer, $event] = $this->completedEventWithRevenue(1_000_000);
+        $order = $event->ticketCategories()->first()->orderItems()->first()->order;
+        Refund::factory()->completed()->create(['order_id' => $order->id, 'amount' => 200_000]);
+
+        Sanctum::actingAs($organizer);
+
+        $this->postJson("/api/v1/organizer/events/{$event->id}/payout", $this->bankPayload())
+            ->assertCreated()
+            ->assertJsonPath('payout.gross_amount', 1_000_000)
+            ->assertJsonPath('payout.platform_fee', 50_000)
+            ->assertJsonPath('payout.refund_deductions', 200_000)
+            ->assertJsonPath('payout.net_amount', 750_000);
+
+        $this->assertDatabaseHas('payouts', [
+            'event_id' => $event->id,
+            'refund_deductions' => 200_000,
+            'net_amount' => 750_000,
+        ]);
+    }
+
+    public function test_non_completed_refunds_are_not_deducted(): void
+    {
+        [$organizer, $event] = $this->completedEventWithRevenue(1_000_000);
+        $order = $event->ticketCategories()->first()->orderItems()->first()->order;
+        Refund::factory()->pending()->create(['order_id' => $order->id, 'amount' => 200_000]);
+
+        Sanctum::actingAs($organizer);
+
+        $this->postJson("/api/v1/organizer/events/{$event->id}/payout", $this->bankPayload())
+            ->assertCreated()
+            ->assertJsonPath('payout.refund_deductions', 0)
+            ->assertJsonPath('payout.net_amount', 950_000);
+    }
+
+    public function test_payout_is_rejected_when_net_is_zero(): void
+    {
+        [$organizer, $event] = $this->completedEventWithRevenue(1_000_000);
+        $order = $event->ticketCategories()->first()->orderItems()->first()->order;
+        Refund::factory()->completed()->create(['order_id' => $order->id, 'amount' => 2_000_000]);
+
+        Sanctum::actingAs($organizer);
+
+        $this->postJson("/api/v1/organizer/events/{$event->id}/payout", $this->bankPayload())
+            ->assertStatus(422);
+
+        $this->assertDatabaseCount('payouts', 0);
+    }
+
+    public function test_platform_fee_rate_is_configurable(): void
+    {
+        [$organizer, $event] = $this->completedEventWithRevenue(1_000_000);
+
+        config(['payout.platform_fee_rate' => 0.10]);
+
+        Sanctum::actingAs($organizer);
+
+        $this->postJson("/api/v1/organizer/events/{$event->id}/payout", $this->bankPayload())
+            ->assertCreated()
+            ->assertJsonPath('payout.platform_fee', 100_000)
+            ->assertJsonPath('payout.net_amount', 900_000);
     }
 }

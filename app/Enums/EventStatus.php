@@ -8,6 +8,7 @@ enum EventStatus: string
     case Pending = 'pending';
     case Published = 'published';
     case Rejected = 'rejected';
+    case PendingCancellation = 'pending_cancellation';
     case Cancelled = 'cancelled';
     case Completed = 'completed';
 
@@ -18,6 +19,7 @@ enum EventStatus: string
             self::Pending => 'Menunggu Persetujuan',
             self::Published => 'Published',
             self::Rejected => 'Ditolak',
+            self::PendingCancellation => 'Menunggu Persetujuan Pembatalan',
             self::Cancelled => 'Dibatalkan',
             self::Completed => 'Selesai',
         };
