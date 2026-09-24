@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Repositories\UserRepository;
+use App\Services\OtpService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -14,7 +15,10 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    public function __construct(private UserRepository $users) {}
+    public function __construct(
+        private UserRepository $users,
+        private OtpService $otp,
+    ) {}
 
     public function register(Request $request): JsonResponse
     {
@@ -28,12 +32,52 @@ class AuthController extends Controller
         $user = $this->users->create([
             ...$data,
             'role' => UserRole::Customer->value,
+            'is_verified' => false,
         ]);
+
+        $this->otp->send($user);
 
         return response()->json([
             'token' => $user->createToken('soundtix')->plainTextToken,
             'user' => new UserResource($user),
         ], 201);
+    }
+
+    public function verifySend(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($user->is_verified) {
+            return response()->json(['message' => 'Akun Anda sudah terverifikasi.'], 422);
+        }
+
+        $this->otp->send($user);
+
+        return response()->json(['message' => 'Kode verifikasi baru telah dikirim ke email Anda.']);
+    }
+
+    public function verifyConfirm(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($user->is_verified) {
+            return response()->json(['message' => 'Akun Anda sudah terverifikasi.'], 422);
+        }
+
+        $code = $request->validate([
+            'code' => ['required', 'string', 'size:6'],
+        ])['code'];
+
+        if (! $this->otp->verify($user, $code)) {
+            throw ValidationException::withMessages([
+                'code' => ['Kode verifikasi salah atau sudah kedaluwarsa.'],
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Email berhasil diverifikasi.',
+            'user' => new UserResource($user->fresh()),
+        ]);
     }
 
     public function login(Request $request): JsonResponse

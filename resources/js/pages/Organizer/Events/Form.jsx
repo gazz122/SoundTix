@@ -15,6 +15,8 @@ export default function Form({ event }) {
         event_date: event?.event_date ?? '',
         start_time: event?.start_time ?? '19:00',
         end_time: event?.end_time ?? '',
+        open_gate: event?.open_gate ?? '',
+        close_gate: event?.close_gate ?? '',
         banner: null,
         performers: event?.performers?.join('\n') ?? '',
         status: 'draft',
@@ -117,6 +119,13 @@ export default function Form({ event }) {
                         <Field label="Jam Mulai" type="time" value={data.start_time} onChange={(value) => setData('start_time', value)} error={errors.start_time} />
                         <Field label="Jam Selesai (opsional)" type="time" value={data.end_time} onChange={(value) => setData('end_time', value)} error={errors.end_time} />
                     </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <Field label="Jam Buka Pintu (opsional)" type="datetime-local" value={data.open_gate} onChange={(value) => setData('open_gate', value)} error={errors.open_gate} />
+                        <Field label="Jam Tutup Pintu (opsional)" type="datetime-local" value={data.close_gate} onChange={(value) => setData('close_gate', value)} error={errors.close_gate} />
+                    </div>
+                    <p className="text-xs text-slate-400">
+                        Scan tiket hanya diterima di luar rentang ini. Waktu dalam WIB.
+                    </p>
                 </Section>
 
                 <Section title="Performer / Artis" note="Satu nama per baris.">

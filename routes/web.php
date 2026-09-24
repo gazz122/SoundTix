@@ -5,6 +5,7 @@ use App\Http\Controllers\AdminEventController;
 use App\Http\Controllers\AdminPayoutPageController;
 use App\Http\Controllers\AdminRefundPageController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\OtpVerificationController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EventController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\OrganizerPayoutPageController;
 use App\Http\Controllers\OrganizerRefundPageController;
 use App\Http\Controllers\OrganizerReportController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\RundownController;
 use App\Http\Controllers\TicketCategoryController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -38,6 +40,9 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+    Route::get('/verify', [OtpVerificationController::class, 'show'])->name('verify.show');
+    Route::post('/verify', [OtpVerificationController::class, 'confirm'])->name('verify.confirm');
+    Route::post('/verify/send', [OtpVerificationController::class, 'send'])->middleware('throttle:auth')->name('verify.send');
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
@@ -61,6 +66,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/reports/csv', [OrganizerReportController::class, 'csv'])->name('reports.csv');
         Route::get('/reports/print', [OrganizerReportController::class, 'print'])->name('reports.print');
 
+        Route::post('/events/{event}/rundowns', [RundownController::class, 'store'])->name('events.rundowns.store');
+        Route::put('/events/{event}/rundowns/{rundown}', [RundownController::class, 'update'])->name('events.rundowns.update');
+        Route::delete('/events/{event}/rundowns/{rundown}', [RundownController::class, 'destroy'])->name('events.rundowns.destroy');
+
         Route::get('/payouts', [OrganizerPayoutPageController::class, 'index'])->name('payouts.index');
         Route::post('/payouts/{event}/withdraw', [OrganizerPayoutPageController::class, 'withdraw'])->name('payouts.withdraw');
     });
@@ -82,6 +91,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/users', [AdminUserController::class, 'store'])->name('users.store');
         Route::get('/users/{user}/edit', [AdminUserController::class, 'edit'])->name('users.edit');
         Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('users.update');
+        Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
 
         Route::get('/payouts', [AdminPayoutPageController::class, 'index'])->name('payouts.index');
         Route::post('/payouts/{payout}/approve', [AdminPayoutPageController::class, 'approve'])->name('payouts.approve');
@@ -110,5 +120,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/orders/{order:order_code}/pay', [PaymentController::class, 'pay'])->name('pay');
         Route::post('/payments/{payment}/settle', [PaymentController::class, 'settle'])->name('settle');
         Route::post('/payments/{payment}/expire', [PaymentController::class, 'expire'])->name('expire');
+        Route::post('/payments/{payment}/check', [PaymentController::class, 'checkStatus'])->name('check');
     });
 });

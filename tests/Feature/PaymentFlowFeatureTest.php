@@ -52,9 +52,9 @@ class PaymentFlowFeatureTest extends TestCase
         return $order;
     }
 
-    private function pay(Order $order, string $method = 'bank_transfer')
+    private function pay(Order $order, string $method = 'bank_transfer', string $bank = 'bca')
     {
-        return $this->post("/orders/{$order->order_code}/pay", ['method' => $method]);
+        return $this->post("/orders/{$order->order_code}/pay", ['method' => $method, 'bank' => $bank]);
     }
 
     public function test_customer_can_create_pending_payment(): void
@@ -63,7 +63,7 @@ class PaymentFlowFeatureTest extends TestCase
         $order = $this->pendingOrderWithItem($customer);
 
         $this->actingAs($customer)
-            ->post("/orders/{$order->order_code}/pay", ['method' => 'bank_transfer'])
+            ->post("/orders/{$order->order_code}/pay", ['method' => 'bank_transfer', 'bank' => 'bca'])
             ->assertRedirect("/orders/{$order->order_code}");
 
         $payment = $order->payments()->first();
@@ -73,6 +73,32 @@ class PaymentFlowFeatureTest extends TestCase
         $this->assertSame(PaymentStatus::Pending->value, $payment->payment_status);
         $this->assertSame('400000.00', $payment->gross_amount);
         $this->assertSame(OrderStatus::Pending->value, $order->fresh()->status);
+        $this->assertSame('bca', $payment->raw_response['bank']);
+        $this->assertSame('8008'.str_pad((string) $order->id, 10, '0', STR_PAD_LEFT), $payment->raw_response['va_number']);
+    }
+
+    public function test_bank_transfer_requires_a_selected_bank(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer);
+
+        $this->actingAs($customer)
+            ->post("/orders/{$order->order_code}/pay", ['method' => 'bank_transfer'])
+            ->assertSessionHasErrors('bank');
+
+        $this->assertSame(0, $order->payments()->count());
+    }
+
+    public function test_bank_transfer_rejects_unknown_bank(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer);
+
+        $this->actingAs($customer)
+            ->post("/orders/{$order->order_code}/pay", ['method' => 'bank_transfer', 'bank' => 'bank-keliling'])
+            ->assertSessionHasErrors('bank');
+
+        $this->assertSame(0, $order->payments()->count());
     }
 
     public function test_customer_can_pay_with_qris(): void
@@ -82,7 +108,9 @@ class PaymentFlowFeatureTest extends TestCase
 
         $this->actingAs($customer)->post("/orders/{$order->order_code}/pay", ['method' => 'qris'])->assertRedirect();
 
-        $this->assertSame(PaymentType::Qris->value, $order->payments()->first()->payment_type);
+        $payment = $order->payments()->first();
+        $this->assertSame(PaymentType::Qris->value, $payment->payment_type);
+        $this->assertSame('STX-'.strtoupper($order->order_code.'-'.$order->id), $payment->raw_response['qr_string']);
     }
 
     public function test_pay_requires_valid_method(): void
@@ -215,6 +243,52 @@ class PaymentFlowFeatureTest extends TestCase
             ->assertSessionHas('error');
 
         $this->assertSame(2, Ticket::count());
+    }
+
+    public function test_customer_can_check_status_and_settle_payment(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer, quantity: 2);
+        $this->actingAs($customer)->pay($order);
+        $payment = $order->payments()->first();
+
+        $this->actingAs($customer)
+            ->post("/payments/{$payment->id}/check")
+            ->assertRedirect("/orders/{$order->order_code}")
+            ->assertSessionHas('success');
+
+        $this->assertSame(PaymentStatus::Settlement->value, $payment->fresh()->payment_status);
+        $this->assertSame(OrderStatus::Paid->value, $order->fresh()->status);
+        $this->assertSame(2, Ticket::count());
+    }
+
+    public function test_check_status_cannot_be_replayed(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer, quantity: 2);
+        $this->actingAs($customer)->pay($order);
+        $payment = $order->payments()->first();
+
+        $this->actingAs($customer)->post("/payments/{$payment->id}/check")->assertRedirect();
+
+        $this->actingAs($customer)
+            ->post("/payments/{$payment->id}/check")
+            ->assertRedirect("/orders/{$order->order_code}")
+            ->assertSessionHas('error');
+
+        $this->assertSame(2, Ticket::count());
+    }
+
+    public function test_check_status_of_another_customer_returns_404(): void
+    {
+        $owner = $this->customer();
+        $order = $this->pendingOrderWithItem($owner);
+        $this->actingAs($owner)->pay($order);
+        $payment = $order->payments()->first();
+
+        $this->actingAs($this->customer())
+            ->post("/payments/{$payment->id}/check")
+            ->assertNotFound();
     }
 
     public function test_expire_releases_stock_and_marks_order_expired(): void

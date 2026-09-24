@@ -1,4 +1,4 @@
-import { Link, useForm } from '@inertiajs/react';
+import { Link, router, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '@/components/AppLayout';
 
 const ROLE_COLORS = {
@@ -14,7 +14,15 @@ export default function Index({ users, filters }) {
         role: filters.role ?? '',
     });
 
+    const currentUserId = usePage().props.auth?.user?.id;
+
     const list = users.data ?? [];
+
+    function remove(user) {
+        if (window.confirm(`Hapus akun "${user.name}"? Akun tidak akan bisa login kembali.`)) {
+            router.delete(`/admin/users/${user.id}`, { preserveScroll: true });
+        }
+    }
 
     function apply(event) {
         event?.preventDefault();
@@ -134,6 +142,18 @@ export default function Index({ users, filters }) {
                                             >
                                                 Edit
                                             </Link>
+                                            {user.id !== currentUserId && (
+                                                <>
+                                                    <span className="mx-2 text-slate-300">·</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => remove(user)}
+                                                        className="text-rose-600 hover:text-rose-700 font-medium"
+                                                    >
+                                                        Hapus
+                                                    </button>
+                                                </>
+                                            )}
                                         </Td>
                                     </tr>
                                 ))}

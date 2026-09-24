@@ -1,4 +1,5 @@
 import { Link, useForm } from '@inertiajs/react';
+import logo from '../../../../assets/logo.png';
 
 
 export default function Login() {
@@ -17,6 +18,7 @@ export default function Login() {
         <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex items-center justify-center px-4">
             <div className="w-full max-w-md">
                 <div className="mb-8 text-center">
+                    <img src={logo} alt="SoundTix" className="mx-auto mb-4 h-14 w-14 rounded-2xl object-contain shadow-sm" />
                     <h1 className="text-2xl font-semibold text-slate-900">Masuk SoundTix</h1>
                     <p className="mt-1 text-sm text-slate-500">Masuk untuk mengelola tiket dan event konser Anda.</p>
                 </div>

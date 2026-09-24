@@ -17,6 +17,8 @@ Route::get('/events/{event:slug}', [EventController::class, 'show']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/verify/send', [AuthController::class, 'verifySend']);
+    Route::post('/verify/confirm', [AuthController::class, 'verifyConfirm']);
 });
 
 Route::middleware(['auth:sanctum', 'role:organizer'])->prefix('/organizer')->group(function () {

@@ -6,6 +6,11 @@ import { formatDate, rupiah } from '@/lib/format';
 
 const MAX_TICKETS_PER_ORDER = 5;
 
+function formatGate(value) {
+    const [datePart, timePart] = value.split(' ');
+    return `${formatDate(datePart)} ${timePart} WIB`;
+}
+
 export default function Show({ event }) {
     const { auth } = usePage().props;
     const user = auth?.user;
@@ -41,6 +46,11 @@ export default function Show({ event }) {
                                 <span className="mx-2">·</span>
                                 {event.address}
                             </p>
+                            {event.open_gate && (
+                                <p className="mt-1 text-sm font-medium text-indigo-600">
+                                    Pintu dibuka {formatGate(event.open_gate)} · ditutup {formatGate(event.close_gate)}
+                                </p>
+                            )}
                             <p className="text-sm text-slate-400">
                                 Dipromosikan oleh{' '}
                                 <span className="font-medium text-slate-600">{event.organizer.name}</span>
@@ -70,6 +80,33 @@ export default function Show({ event }) {
                             ))}
                         </div>
                     </div>
+
+                    {event.rundowns?.length > 0 && (
+                        <div className="mt-8">
+                            <h2 className="text-lg font-semibold text-slate-900">Rundown Acara</h2>
+                            <ol className="mt-3 space-y-2">
+                                {event.rundowns.map((item) => (
+                                    <li
+                                        key={item.id}
+                                        className="flex gap-4 rounded-xl border border-slate-200/80 bg-white p-4"
+                                    >
+                                        <div className="shrink-0 text-center">
+                                            <p className="text-sm font-bold text-indigo-600">{item.start_time}</p>
+                                            {item.end_time && (
+                                                <p className="text-xs text-slate-400">– {item.end_time}</p>
+                                            )}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="font-medium text-slate-900">{item.title}</p>
+                                            {item.description && (
+                                                <p className="mt-0.5 text-sm text-slate-500">{item.description}</p>
+                                            )}
+                                        </div>
+                                    </li>
+                                ))}
+                            </ol>
+                        </div>
+                    )}
 
                     <div className="mt-8" id="order">
                         <h2 className="text-lg font-semibold text-slate-900">Kategori Tiket</h2>

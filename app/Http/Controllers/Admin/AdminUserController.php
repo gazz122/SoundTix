@@ -67,6 +67,16 @@ class AdminUserController extends Controller
             ->with('success', 'Data pengguna berhasil diperbarui.');
     }
 
+    public function destroy(int $id): RedirectResponse
+    {
+        $user = $this->findEditable($id);
+        $user->delete();
+
+        return redirect()
+            ->route('admin.users.index')
+            ->with('success', 'Akun pengguna dihapus.');
+    }
+
     private function findEditable(int $id): User
     {
         $user = $this->users->findByIdOrFail($id);

@@ -13,7 +13,7 @@ class OrderRepository
     {
         return Order::where('customer_id', $customerId)
             ->with([
-                'orderItems.ticketCategory' => fn ($query) => $query->with('event:id,title,slug,event_date'),
+                'orderItems.ticketCategory' => fn ($query) => $query->with('event:id,title,slug,event_date,venue_name,city,address,start_time'),
                 'orderItems.tickets',
                 'payments',
                 'refunds',
@@ -25,7 +25,7 @@ class OrderRepository
     public function loadOverview(Order $order): Order
     {
         return $order->load([
-            'orderItems.ticketCategory.event:id,title,slug,event_date',
+            'orderItems.ticketCategory.event:id,title,slug,event_date,venue_name,city,address,start_time',
             'orderItems.tickets',
             'payments',
             'refunds',

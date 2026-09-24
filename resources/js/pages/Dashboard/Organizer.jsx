@@ -4,7 +4,7 @@ import StatCard from '@/components/ui/StatCard';
 
 export default function Organizer({ stats }) {
     const last7 = stats.sales_by_day.slice(-7);
-    const maxRevenue = Math.max(...last7.map((d) => d.revenue), 1);
+    const maxRevenue = Math.max(...last7.map((dataPoint) => dataPoint.revenue), 1);
 
     return (
         <AppLayout>
@@ -23,25 +23,58 @@ export default function Organizer({ stats }) {
                         {last7.length === 0 ? (
                             <p className="py-6 text-center text-sm text-slate-400">Belum ada data penjualan.</p>
                         ) : (
-                            <div className="flex items-end gap-2 pt-4" style={{ height: 160 }}>
-                                {last7.map((d) => {
-                                    const h = Math.round((d.revenue / maxRevenue) * 120) + 4;
-                                    return (
-                                        <div key={d.date} className="flex flex-1 flex-col items-center gap-1">
-                                            <span className="text-[10px] tabular-nums text-slate-500">
-                                                {rupiahShort(d.revenue)}
-                                            </span>
-                                            <div
-                                                className="w-full rounded-t bg-indigo-500/80 transition-all"
-                                                style={{ height: h }}
-                                                title={`${d.date}\n${rupiah(d.revenue)} (${d.orders} pesanan)`}
+                            <div className="pt-4">
+                                <svg
+                                    viewBox="0 0 700 190"
+                                    role="img"
+                                    aria-label="Grafik garis penjualan 7 hari terakhir"
+                                    className="h-auto w-full overflow-visible"
+                                >
+                                    {[0, 1, 2, 3].map((gridLine) => {
+                                        const y = 130 - gridLine * 33;
+
+                                        return (
+                                            <line
+                                                key={gridLine}
+                                                x1="24"
+                                                x2="676"
+                                                y1={y}
+                                                y2={y}
+                                                className="stroke-slate-100"
+                                                strokeWidth="1"
                                             />
-                                            <span className="text-[10px] text-slate-400">
-                                                {new Date(d.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })}
+                                    <polyline
+                                        points={last7
+                                            .map((dataPoint, index) => {
+                                                const x = last7.length === 1 ? 350 : 24 + index * (652 / (last7.length - 1));
+                                                const y = 130 - (dataPoint.revenue / maxRevenue) * 100;
+
+                                                return `${x},${y}`;
+                                            })
+                                            .join(' ')}
+                                        fill="none"
+                                        className="stroke-indigo-600"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="3"
+                                    />
+                                    {last7.map((dataPoint, index) => {
+                                        const x = last7.length === 1 ? 350 : 24 + index * (652 / (last7.length - 1));
+                                        const y = 130 - (dataPoint.revenue / maxRevenue) * 100;
+
+                                        return (
+                                            <g key={dataPoint.date}>
+                                                <title>{`${dataPoint.date}\n${rupiah(dataPoint.revenue)} (${dataPoint.orders} pesanan)`}</title>
+                                                <circle cx={x} cy={y} r="5" className="fill-white stroke-indigo-600" strokeWidth="3" />
+                                                <text x={x} y="155" textAnchor="middle" className="fill-slate-400 text-[10px]">
+                                                    {new Date(dataPoint.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                                                </text>
+                                            </g>
+                                        );
+                                    })}
+                                </svg>
                             </div>
                         )}
                     </Panel>

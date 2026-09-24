@@ -34,6 +34,8 @@ class EventFactory extends Factory
             'event_date' => now()->addDays(fake()->numberBetween(3, 60))->toDateString(),
             'start_time' => '19:00',
             'end_time' => '22:00',
+            'open_gate' => null,
+            'close_gate' => null,
             'status' => 'published',
         ];
     }

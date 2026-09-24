@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Bank;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\PaymentType;
@@ -39,11 +40,46 @@ class PaymentController extends Controller
             'method' => ['required', Rule::enum(PaymentType::class)],
         ])['method'];
 
-        $this->gateway->createPayment($order, PaymentType::from($method));
+        $bank = null;
+        if ($method === PaymentType::BankTransfer->value) {
+            $bank = $request->validate([
+                'bank' => ['required', Rule::enum(Bank::class)],
+            ])['bank'];
+        }
+
+        $this->gateway->createPayment($order, PaymentType::from($method), $bank);
 
         return redirect()->route('orders.show', $order->order_code)->with(
             'success',
-            'Pembayaran dibuat. Selesaikan simulasi pembayaran Anda.',
+            'Pembayaran dibuat. Ikuti instruksi dan lakukan pembayaran.',
+        );
+    }
+
+    public function checkStatus(Request $request, Payment $payment): RedirectResponse
+    {
+        $order = $this->guardPaymentOwned($request, $payment);
+
+        if ($payment->payment_status !== PaymentStatus::Pending->value) {
+            return redirect()->route('orders.show', $order->order_code)->with(
+                'error',
+                'Transaksi ini sudah diproses.',
+            );
+        }
+
+        if ($order->status !== OrderStatus::Pending->value) {
+            return redirect()->route('orders.show', $order->order_code)->with(
+                'error',
+                'Pesanan ini tidak dapat diproses lagi.',
+            );
+        }
+
+        if ($this->gateway->checkStatus($payment) === PaymentStatus::Settlement) {
+            $this->gateway->process($payment, PaymentStatus::Settlement);
+        }
+
+        return redirect()->route('orders.show', $order->order_code)->with(
+            'success',
+            'Pembayaran dikonfirmasi. E-tiket Anda telah diterbitkan.',
         );
     }
 

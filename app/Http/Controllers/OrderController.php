@@ -54,6 +54,12 @@ class OrderController extends Controller
     {
         $event = $this->events->findPublishedBySlug($slug);
 
+        if (! $request->user()->is_verified) {
+            return back()->withErrors([
+                'items' => 'Verifikasi email Anda terlebih dahulu sebelum membeli tiket.',
+            ]);
+        }
+
         $data = $request->validate([
             'items' => ['required', 'array', 'min:1'],
             'items.*.category_id' => ['required', 'integer', Rule::exists('ticket_categories', 'id')],
@@ -285,6 +291,10 @@ class OrderController extends Controller
                         'category' => $item->ticketCategory->name,
                         'event_title' => $item->ticketCategory->event?->title,
                         'event_date' => $item->ticketCategory->event?->event_date?->format('Y-m-d'),
+                        'venue' => $item->ticketCategory->event
+                            ? sprintf('%s, %s', $item->ticketCategory->event->venue_name, $item->ticketCategory->event->city)
+                            : null,
+                        'start_time' => $item->ticketCategory->event?->start_time,
                     ],
                 ))->values()->all()
                 : [],
@@ -300,6 +310,9 @@ class OrderController extends Controller
                     'gross_amount' => (float) $payment->gross_amount,
                     'status' => $payment->payment_status,
                     'status_label' => PaymentStatus::from($payment->payment_status)->label(),
+                    'bank' => $payment->raw_response['bank'] ?? null,
+                    'va_number' => $payment->raw_response['va_number'] ?? null,
+                    'qr_string' => $payment->raw_response['qr_string'] ?? null,
                     'created_at' => $payment->created_at?->format('d M Y H:i'),
                 ])
                 ->all(),

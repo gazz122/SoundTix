@@ -22,6 +22,7 @@ class UserResource extends JsonResource
             'role' => $this->role->value,
             'role_label' => $this->role->label(),
             'is_active' => $this->is_active,
+            'is_verified' => $this->is_verified,
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

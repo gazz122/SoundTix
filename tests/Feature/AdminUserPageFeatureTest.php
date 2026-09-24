@@ -108,4 +108,45 @@ class AdminUserPageFeatureTest extends TestCase
             ->put("/admin/users/{$admin->id}", ['name' => 'Sialan'])
             ->assertForbidden();
     }
+
+    public function test_admin_can_delete_a_user_account(): void
+    {
+        $customer = User::factory()->create(['name' => 'Budi Korban']);
+        $admin = $this->admin();
+
+        $this->actingAs($admin)
+            ->delete("/admin/users/{$customer->id}")
+            ->assertRedirect(route('admin.users.index'));
+
+        $this->assertSoftDeleted('users', ['id' => $customer->id]);
+
+        $this->actingAs($admin)
+            ->get('/admin/users')
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('users.data', 1)
+                ->where('users.data.0.email', $admin->email));
+    }
+
+    public function test_admin_cannot_delete_own_account(): void
+    {
+        $admin = $this->admin();
+
+        $this->actingAs($admin)
+            ->delete("/admin/users/{$admin->id}")
+            ->assertForbidden();
+
+        $this->assertNotSoftDeleted('users', ['id' => $admin->id]);
+    }
+
+    public function test_deleted_user_cannot_login(): void
+    {
+        $password = 'secret123';
+        $customer = User::factory()->create(['email' => 'terhapus@example.com', 'password' => $password]);
+        $customer->delete();
+
+        $this->post('/login', [
+            'email' => $customer->email,
+            'password' => $password,
+        ])->assertSessionHasErrors('email');
+    }
 }

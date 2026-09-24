@@ -3,7 +3,7 @@ import jsQR from 'jsqr';
 import { useEffect, useRef, useState } from 'react';
 import logo from '../../../../assets/logo.png';
 
-export default function Scanner() {
+export default function Scanner({ rundowns = [] }) {
     const { flash } = usePage().props;
     const result = flash?.scan_result ?? null;
 
@@ -166,6 +166,51 @@ export default function Scanner() {
 
             <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
                 {result && <ValidationResult result={result} />}
+
+                {rundowns.length > 0 && (
+                    <div className="mb-6 overflow-hidden rounded-xl border border-slate-800/60 bg-slate-900 shadow-lg">
+                        <div className="border-b border-slate-800 px-5 py-4">
+                            <h2 className="font-medium text-white">Rundown Acara Terdekat</h2>
+                        </div>
+                        <div className="divide-y divide-slate-800">
+                            {rundowns.map((event) => (
+                                <div key={event.id} className="px-5 py-4">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <p className="font-medium text-white">{event.title}</p>
+                                        <p className="text-xs text-slate-400">{event.event_date}</p>
+                                    </div>
+                                    {(event.open_gate || event.close_gate) && (
+                                        <p className="mt-1 text-xs text-indigo-300">
+                                            Pintu buka {event.open_gate} WIB{event.close_gate ? ` · tutup ${event.close_gate} WIB` : ''}
+                                        </p>
+                                    )}
+                                    {event.rundowns.length > 0 ? (
+                                        <ul className="mt-3 space-y-2">
+                                            {event.rundowns.map((item, index) => (
+                                                <li
+                                                    key={`${item.title}-${index}`}
+                                                    className="flex gap-3 text-sm"
+                                                >
+                                                    <span className="shrink-0 font-mono font-medium text-indigo-300">
+                                                        {item.start_time}{item.end_time ? `–${item.end_time}` : ''}
+                                                    </span>
+                                                    <span className="text-slate-200">
+                                                        {item.title}
+                                                        {item.description && (
+                                                            <span className="block text-xs text-slate-400">{item.description}</span>
+                                                        )}
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="mt-2 text-xs text-slate-500">Belum ada rundown sesi.</p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 <div className="grid gap-6 lg:grid-cols-2">
                     <div className="overflow-hidden rounded-xl border border-slate-800/60 bg-slate-900 shadow-lg">

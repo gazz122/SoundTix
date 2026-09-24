@@ -22,6 +22,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'event_date',
     'start_time',
     'end_time',
+    'open_gate',
+    'close_gate',
     'status',
     'rejection_reason',
     'cancellation_reason',
@@ -39,6 +41,8 @@ class Event extends Model
     {
         return [
             'event_date' => 'date',
+            'open_gate' => 'datetime',
+            'close_gate' => 'datetime',
         ];
     }
 
@@ -55,6 +59,11 @@ class Event extends Model
     public function ticketCategories(): HasMany
     {
         return $this->hasMany(TicketCategory::class);
+    }
+
+    public function rundowns(): HasMany
+    {
+        return $this->hasMany(EventRundown::class)->orderBy('start_time');
     }
 
     public function payouts(): HasMany

@@ -25,7 +25,7 @@ class SecurityConcurrencyFeatureTest extends TestCase
             'password' => 'secret123',
             'password_confirmation' => 'secret123',
             'role' => 'admin',
-        ])->assertRedirect(route('dashboard'));
+        ])->assertRedirect('/verify');
 
         $this->assertDatabaseMissing('users', [
             'email' => 'not-admin@example.com',

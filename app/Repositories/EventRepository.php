@@ -42,7 +42,7 @@ class EventRepository
     {
         return Event::query()
             ->published()
-            ->with(['performers', 'ticketCategories', 'organizer'])
+            ->with(['performers', 'ticketCategories', 'organizer', 'rundowns'])
             ->where('slug', $slug)
             ->firstOrFail();
     }

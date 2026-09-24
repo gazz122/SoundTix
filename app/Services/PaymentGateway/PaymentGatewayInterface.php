@@ -11,8 +11,15 @@ interface PaymentGatewayInterface
 {
     /**
      * Register a pending payment for an order with the chosen method.
+     *
+     * @param  string|null  $bank  Bank code when PaymentType::BankTransfer is used.
      */
-    public function createPayment(Order $order, PaymentType $method): Payment;
+    public function createPayment(Order $order, PaymentType $method, ?string $bank = null): Payment;
+
+    /**
+     * Query the gateway for the current status of a pending payment.
+     */
+    public function checkStatus(Payment $payment): PaymentStatus;
 
     /**
      * Apply a result to a payment. On settlement the order is marked paid

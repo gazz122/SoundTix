@@ -157,7 +157,7 @@ class WebAuthFeatureTest extends TestCase
             'phone' => '081234567890',
             'password' => 'password',
             'password_confirmation' => 'password',
-        ])->assertRedirect(route('dashboard'));
+        ])->assertRedirect('/verify');
 
         $this->assertDatabaseHas('users', [
             'email' => 'sinta@example.com',
@@ -175,7 +175,7 @@ class WebAuthFeatureTest extends TestCase
             'password' => 'password',
             'password_confirmation' => 'password',
             'role' => 'organizer',
-        ])->assertRedirect(route('dashboard'));
+        ])->assertRedirect('/verify');
 
         $this->assertDatabaseHas('users', [
             'email' => 'sinta@example.com',
@@ -193,7 +193,7 @@ class WebAuthFeatureTest extends TestCase
             'password' => 'password',
             'password_confirmation' => 'password',
             'role' => 'admin',
-        ])->assertRedirect(route('dashboard'));
+        ])->assertRedirect('/verify');
 
         $this->assertDatabaseHas('users', [
             'email' => 'nakal@example.com',
@@ -211,7 +211,7 @@ class WebAuthFeatureTest extends TestCase
             'password' => 'password',
             'password_confirmation' => 'password',
             'role' => 'gatekeeper',
-        ])->assertRedirect(route('dashboard'));
+        ])->assertRedirect('/verify');
 
         $this->assertDatabaseHas('users', [
             'email' => 'nakal2@example.com',

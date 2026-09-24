@@ -10,6 +10,7 @@ use App\Repositories\PerformerRepository;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -37,7 +38,7 @@ class OrganizerEventController extends Controller
     public function show(Request $request, int $id): Response
     {
         $event = $this->events->findOwnedByOrganizer($request->user()->id, $id);
-        $event->loadCount('ticketCategories')->load('performers:id,name');
+        $event->loadCount('ticketCategories')->load(['performers:id,name', 'rundowns']);
 
         $refunds = Refund::query()
             ->whereHas('order.orderItems.ticketCategory.event', fn ($query) => $query->whereKey($id))
@@ -176,6 +177,8 @@ class OrganizerEventController extends Controller
             'event_date' => ['required', 'date', 'after:today'],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['nullable', 'date_format:H:i'],
+            'open_gate' => ['nullable', 'date'],
+            'close_gate' => ['nullable', 'date', 'after:open_gate'],
             'status' => ['required', Rule::enum(EventStatus::class)->only([EventStatus::Draft, EventStatus::Pending])],
             'banner' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:2048'],
             'performers' => ['nullable', 'array'],
@@ -191,6 +194,8 @@ class OrganizerEventController extends Controller
             'event_date' => $validated['event_date'],
             'start_time' => $validated['start_time'],
             'end_time' => $validated['end_time'] ?? null,
+            'open_gate' => $this->toUtcWib($validated['open_gate'] ?? null),
+            'close_gate' => $this->toUtcWib($validated['close_gate'] ?? null),
             'status' => $validated['status'],
             'performers' => $this->normalizePerformers($validated['performers'] ?? []),
         ];
@@ -218,6 +223,34 @@ class OrganizerEventController extends Controller
         $ids = collect($names)->map(fn (string $name) => $this->performers->firstOrCreateByName($name)->id)->all();
 
         $event->performers()->sync($ids);
+    }
+
+    /**
+     * Convert a WIB datetime-local input to an application-timezone (UTC) timestamp.
+     */
+    private function toUtcWib(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return Carbon::parse($value, 'Asia/Jakarta')
+            ->setTimezone('UTC')
+            ->format('Y-m-d H:i:s');
+    }
+
+    private function wibInput(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        return $value->copy()->setTimezone('Asia/Jakarta')->format('Y-m-d\TH:i');
+    }
+
+    private function wibLabel(mixed $value): ?string
+    {
+        return $value === null ? null : $value->copy()->setTimezone('Asia/Jakarta')->format('d M Y, H:i');
     }
 
     private function uniqueSlug(string $title): string
@@ -251,6 +284,20 @@ class OrganizerEventController extends Controller
             'event_date' => $event->event_date?->format('Y-m-d'),
             'start_time' => $event->start_time,
             'end_time' => $event->end_time,
+            'open_gate' => $this->wibInput($event->open_gate),
+            'close_gate' => $this->wibInput($event->close_gate),
+            'open_gate_label' => $this->wibLabel($event->open_gate),
+            'close_gate_label' => $this->wibLabel($event->close_gate),
+            'rundowns' => $event->rundowns
+                ->map(fn ($rundown) => [
+                    'id' => $rundown->id,
+                    'start_time' => substr((string) $rundown->start_time, 0, 5),
+                    'end_time' => $rundown->end_time !== null ? substr((string) $rundown->end_time, 0, 5) : null,
+                    'title' => $rundown->title,
+                    'description' => $rundown->description,
+                ])
+                ->values()
+                ->all(),
             'status' => $event->status,
             'status_label' => EventStatus::from($event->status)->label(),
             'rejection_reason' => $event->rejection_reason,
