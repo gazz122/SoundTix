@@ -376,12 +376,12 @@ function ETicket({ ticket, order }) {
 const ticketStyles = {
     card: {
         background: '#ffffff',
-        borderRadius: 14,
+        borderRadius: 24,
         border: '1px solid #e2e8f0',
         boxShadow: '0 1px 3px rgba(15, 23, 42, 0.10)',
         overflow: 'hidden',
     },
-    band: { background: 'linear-gradient(135deg, #4338ca 0%, #7c3aed 100%)', padding: '18px 20px', color: '#ffffff' },
+    band: { background: '#6b46d1', padding: '18px 20px', color: '#ffffff' },
     row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
     brand: { fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase' },
     ticketCode: { fontSize: 11, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', opacity: 0.9 },
@@ -393,8 +393,8 @@ const ticketStyles = {
     metaValue: { color: '#0f172a', fontWeight: 700, textAlign: 'right' },
     qrWrap: { display: 'flex', justifyContent: 'center', padding: '16px 0 10px' },
     qrNote: { textAlign: 'center', fontSize: 11, color: '#64748b', lineHeight: 1.5 },
-    stub: { borderTop: '2px dashed #c7d2fe', padding: '12px 18px', background: '#f8fafc' },
-    skTitle: { fontSize: 9.5, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: '#4338ca' },
+    stub: { borderTop: '2px dashed #d0c6f3', padding: '12px 18px', background: '#f8fafc' },
+    skTitle: { fontSize: 9.5, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: '#6b46d1' },
     skItem: { fontSize: 9, color: '#475569', lineHeight: 1.5, marginTop: 3 },
 };
 
@@ -441,7 +441,7 @@ function TicketCard({ refId, ticket, order }) {
                 </div>
 
                 <div style={ticketStyles.qrWrap}>
-                    <QRCodeSVG value={ticket.qr_payload} size={170} level="M" />
+                    <QRCodeSVG value={ticket.qr_payload} size={240} level="M" />
                 </div>
                 <p style={ticketStyles.qrNote}>
                     Tunjukkan QR ini beserta identitas Anda kepada petugas saat check-in.

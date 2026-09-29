@@ -1,4 +1,4 @@
-import { router, useForm } from '@inertiajs/react';
+﻿import { router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/ui/StatCard';
@@ -36,7 +36,7 @@ export default function Admin({ stats, pending_events: pendingEvents }) {
                                     <tr key={event.id} className="align-middle hover:bg-slate-50/70">
                                         <td className="px-4 py-4">
                                             <p className="font-medium text-slate-900">{event.title}</p>
-                                            <p className="mt-1 text-xs text-slate-500">{event.venue_name} · {event.city}</p>
+                                            <p className="mt-1 text-xs text-slate-500">{event.venue_name} Â· {event.city}</p>
                                         </td>
                                         <td className="px-4 py-4 text-slate-600">{event.organizer}</td>
                                         <td className="whitespace-nowrap px-4 py-4 text-slate-600">{event.event_date}</td>
@@ -45,7 +45,7 @@ export default function Admin({ stats, pending_events: pendingEvents }) {
                                                 <button
                                                     type="button"
                                                     onClick={() => router.post(`/admin/events/${event.id}/approve`, {}, { preserveScroll: true })}
-                                                    className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white shadow-sm transition-colors hover:bg-emerald-700"
+                                                    className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium text-white shadow-sm transition-colors hover:bg-indigo-700"
                                                 >
                                                     Approve
                                                 </button>
@@ -109,7 +109,7 @@ function RejectModal({ event, onClose }) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
-            <div className="relative w-full max-w-md rounded-xl border border-slate-200/80 bg-white p-6 shadow-lg">
+            <div className="relative w-full max-w-md rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
                 <h3 className="text-lg font-semibold text-slate-900">Reject Event</h3>
                 <p className="mt-1 text-sm text-slate-500">Berikan alasan penolakan untuk {event.title}.</p>
                 <form onSubmit={submit} className="mt-4 space-y-3">

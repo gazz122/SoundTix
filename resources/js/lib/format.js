@@ -1,7 +1,6 @@
 export function rupiah(value) {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(
-        Number(value) || 0,
-    );
+    const formatted = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(Number(value) || 0);
+    return `Rp${formatted}`;
 }
 
 export function formatDate(date) {

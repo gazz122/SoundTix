@@ -53,12 +53,12 @@ export default function HeroCarousel({ events }) {
                         {event.banner_url ? (
                             <img src={event.banner_url} alt={`${event.title} banner`} className="absolute inset-0 h-full w-full object-cover" />
                         ) : (
-                            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-indigo-600 via-indigo-700 to-slate-900">
+                            <div className="absolute inset-0 flex items-center justify-center bg-indigo-600">
                                 <span className="text-6xl font-bold text-white/20">{event.title.charAt(0)}</span>
                             </div>
                         )}
 
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+                        <div className="absolute inset-0 bg-black/50" />
 
                         <div className="absolute inset-x-0 bottom-0 p-5 text-white sm:p-8">
                             <p className="text-[11px] font-medium uppercase tracking-wider text-indigo-300">

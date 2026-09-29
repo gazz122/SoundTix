@@ -76,7 +76,7 @@ export default function Index({ refunds, cancellations }) {
                                                     { preserveScroll: true },
                                                 )
                                             }
-                                            className="bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-all shadow-sm"
+                                            className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-all shadow-sm"
                                         >
                                             Setujui & Refund Semua
                                         </button>
@@ -134,7 +134,7 @@ export default function Index({ refunds, cancellations }) {
                                                     onClick={() =>
                                                         router.post(`/admin/refunds/${refund.id}/approve`, {}, { preserveScroll: true })
                                                     }
-                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-all shadow-sm"
+                                                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-all shadow-sm"
                                                 >
                                                     Setujui
                                                 </button>

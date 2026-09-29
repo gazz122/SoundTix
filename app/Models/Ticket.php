@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable(['order_item_id', 'ticket_code', 'qr_payload', 'status', 'used_at', 'validated_by'])]
 class Ticket extends Model
@@ -32,5 +33,10 @@ class Ticket extends Model
     public function validatedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'validated_by');
+    }
+
+    public function ticketScans(): HasMany
+    {
+        return $this->hasMany(TicketScan::class);
     }
 }

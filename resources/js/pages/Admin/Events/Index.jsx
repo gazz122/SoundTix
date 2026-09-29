@@ -1,4 +1,4 @@
-import { Link, router, useForm, usePage } from '@inertiajs/react';
+﻿import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import StatusBadge from '@/components/StatusBadge';
@@ -82,10 +82,10 @@ function EventItem({ event, onReject }) {
                 <div className="min-w-0">
                     <h2 className="font-semibold text-slate-900 truncate">{event.title}</h2>
                     <p className="mt-0.5 text-sm text-slate-500">
-                        {event.venue_name} · {event.city} · {event.event_date}
+                        {event.venue_name} Â· {event.city} Â· {event.event_date}
                     </p>
                     <p className="text-xs text-slate-400">
-                        Diajukan oleh {event.organizer.name} · {event.performers.length} performer ·{' '}
+                        Diajukan oleh {event.organizer.name} Â· {event.performers.length} performer Â·{' '}
                         {event.ticket_categories_count} kategori tiket
                     </p>
                 </div>
@@ -113,7 +113,7 @@ function EventItem({ event, onReject }) {
                             onClick={() =>
                                 router.post(`/admin/events/${event.id}/approve`, {}, { preserveScroll: true })
                             }
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-all shadow-sm"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-all shadow-sm"
                         >
                             Setujui
                         </button>
@@ -148,7 +148,7 @@ function RejectModal({ event, onClose }) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
-            <div className="relative w-full max-w-md bg-white border border-slate-200/80 rounded-xl shadow-lg p-6">
+            <div className="relative w-full max-w-md bg-white border border-slate-200/80 rounded-xl shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-slate-900">Tolak Event</h3>
                 <p className="mt-1 text-sm text-slate-500">
                     Tolak <span className="font-medium text-slate-700">{event.title}</span> dan berikan alasan yang jelas.

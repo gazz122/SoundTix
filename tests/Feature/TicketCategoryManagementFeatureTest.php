@@ -219,4 +219,89 @@ class TicketCategoryManagementFeatureTest extends TestCase
 
         $this->get("/organizer/events/{$event->id}/categories")->assertRedirect(route('login'));
     }
+
+    public function test_category_defaults_to_all_days_without_event_day(): void
+    {
+        $organizer = $this->organizer();
+        $event = Event::factory()->published()->create(['organizer_id' => $organizer->id]);
+
+        $this->actingAs($organizer)
+            ->post("/organizer/events/{$event->id}/categories", $this->validPayload())
+            ->assertRedirect();
+
+        $category = $event->ticketCategories()->firstOrFail();
+        $this->assertSame('ALL_DAYS', $category->access_type);
+        $this->assertNull($category->event_day_id);
+    }
+
+    public function test_organizer_can_create_single_day_category_tied_to_event_day(): void
+    {
+        $organizer = $this->organizer();
+        $event = Event::factory()->published()->create(['organizer_id' => $organizer->id]);
+        $day = $event->eventDays()->create([
+            'day_number' => 2,
+            'date' => now()->addDays(6)->toDateString(),
+        ]);
+
+        $this->actingAs($organizer)
+            ->post("/organizer/events/{$event->id}/categories", $this->validPayload([
+                'access_type' => 'SINGLE_DAY',
+                'event_day_id' => $day->id,
+            ]))
+            ->assertRedirect();
+
+        $category = $event->ticketCategories()->firstOrFail();
+        $this->assertSame('SINGLE_DAY', $category->access_type);
+        $this->assertSame($day->id, $category->event_day_id);
+    }
+
+    public function test_single_day_category_requires_event_day(): void
+    {
+        $organizer = $this->organizer();
+        $event = Event::factory()->published()->create(['organizer_id' => $organizer->id]);
+
+        $this->actingAs($organizer)
+            ->post("/organizer/events/{$event->id}/categories", $this->validPayload(['access_type' => 'SINGLE_DAY']))
+            ->assertStatus(422);
+
+        $this->assertCount(0, $event->ticketCategories()->get());
+    }
+
+    public function test_single_day_category_rejects_another_events_day(): void
+    {
+        $organizer = $this->organizer();
+        $event = Event::factory()->published()->create(['organizer_id' => $organizer->id]);
+        $other = Event::factory()->published()->create();
+        $otherDay = $other->eventDays()->create([
+            'day_number' => 1,
+            'date' => now()->addDays(5)->toDateString(),
+        ]);
+
+        $this->actingAs($organizer)
+            ->post("/organizer/events/{$event->id}/categories", $this->validPayload([
+                'access_type' => 'SINGLE_DAY',
+                'event_day_id' => $otherDay->id,
+            ]))
+            ->assertStatus(422);
+
+        $this->assertCount(0, $event->ticketCategories()->get());
+    }
+
+    public function test_categories_page_serializes_event_days_for_day_selection(): void
+    {
+        $organizer = $this->organizer();
+        $event = Event::factory()->published()->create(['organizer_id' => $organizer->id]);
+        $event->eventDays()->create(['day_number' => 1, 'date' => now()->addDays(5)->toDateString()]);
+        $event->eventDays()->create(['day_number' => 2, 'date' => now()->addDays(6)->toDateString()]);
+
+        $this->actingAs($organizer)
+            ->get("/organizer/events/{$event->id}/categories")
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->has('event_days', 2)
+                    ->where('event_days.0.day_number', 1)
+                    ->where('event_days.1.day_number', 2),
+            );
+    }
 }

@@ -24,6 +24,12 @@ class GatekeeperValidationFeatureTest extends TestCase
     {
         $customer = User::factory()->create();
         $event = Event::factory()->published()->create();
+        $event->eventDays()->create([
+            'day_number' => 1,
+            'date' => today()->toDateString(),
+            'open_gate' => now()->subHour(),
+            'close_gate' => now()->addHour(),
+        ]);
         $category = $event->ticketCategories()->create([
             'name' => 'Reguler',
             'price' => 150_000,
@@ -95,7 +101,7 @@ class GatekeeperValidationFeatureTest extends TestCase
         $this->get('/dashboard/scan')->assertRedirect('/login');
     }
 
-    public function test_validating_active_ticket_marks_it_used_and_records_validator(): void
+    public function test_validating_active_ticket_records_daily_scan(): void
     {
         $ticket = $this->activeTicket();
         $gatekeeper = $this->gatekeeper();
@@ -105,27 +111,27 @@ class GatekeeperValidationFeatureTest extends TestCase
             ->assertRedirect()
             ->assertSessionHas('scan_result.status', 'success');
 
-        $consumed = $ticket->fresh();
-        $this->assertSame('used', $consumed->status);
-        $this->assertNotNull($consumed->used_at);
-        $this->assertSame($gatekeeper->id, $consumed->validated_by);
+        $this->assertSame('active', $ticket->fresh()->status);
+        $this->assertSame(1, $ticket->ticketScans()->count());
+        $this->assertSame($gatekeeper->id, $ticket->ticketScans()->first()->gatekeeper_id);
     }
 
-    public function test_reused_ticket_is_rejected_without_changing_validator(): void
+    public function test_same_day_rescan_is_rejected_and_keeps_single_record(): void
     {
         $ticket = $this->activeTicket();
         $gatekeeper = $this->gatekeeper();
 
         $this->actingAs($gatekeeper)->post('/dashboard/scan/validate', ['payload' => $ticket->qr_payload]);
-        $usedAt = $ticket->fresh()->used_at;
+        $scannedAt = $ticket->ticketScans()->first()->scanned_at;
 
         $this->actingAs($gatekeeper)
             ->post('/dashboard/scan/validate', ['payload' => $ticket->qr_payload])
-            ->assertSessionHas('scan_result.status', 'used');
+            ->assertSessionHas('scan_result.status', 'already_scanned')
+            ->assertSessionHas('scan_result.message', fn (string $value) => str_contains($value, 'sudah pernah di-scan'));
 
-        $stillUsed = $ticket->fresh();
-        $this->assertSame($gatekeeper->id, $stillUsed->validated_by);
-        $this->assertTrue($stillUsed->used_at->equalTo($usedAt));
+        $this->assertSame('active', $ticket->fresh()->status);
+        $this->assertSame(1, $ticket->ticketScans()->count());
+        $this->assertTrue($ticket->ticketScans()->first()->scanned_at->equalTo($scannedAt));
     }
 
     public function test_tampered_payload_is_rejected_and_ticket_stays_active(): void

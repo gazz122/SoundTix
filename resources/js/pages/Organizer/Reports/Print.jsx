@@ -67,7 +67,7 @@ export default function Print({ items, summary }) {
                 </tfoot>
             </table>
 
-            <p className="mt-8 text-center text-[10px] text-slate-300">SoundTix &mdash; Laporan ini dihasilkan secara otomatis.</p>
+            <p className="mt-8 text-center text-[11px] text-slate-300">SoundTix &mdash; Laporan ini dihasilkan secara otomatis.</p>
         </div>
     );
 }

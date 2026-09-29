@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\EventStatus;
 use App\Models\Event;
+use App\Models\EventDay;
 use App\Models\Refund;
 use App\Repositories\EventRepository;
 use App\Repositories\PerformerRepository;
@@ -75,6 +76,8 @@ class OrganizerEventController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validated($request);
+        $eventDays = $data['event_days'];
+        unset($data['event_days']);
 
         $event = $this->events->create([
             ...$data,
@@ -83,6 +86,7 @@ class OrganizerEventController extends Controller
             'banner_path' => $this->storeBanner($request),
         ]);
 
+        $this->syncEventDays($event, $eventDays);
         $this->syncPerformers($event, $data['performers'] ?? []);
 
         return redirect()
@@ -94,7 +98,7 @@ class OrganizerEventController extends Controller
     {
         $event = $this->findOwnedEvent($request, $id);
 
-        $event->load('performers:id,name');
+        $event->load('performers:id,name', 'eventDays');
 
         return Inertia::render('Organizer/Events/Form', [
             'event' => $this->serialize($event),
@@ -111,6 +115,8 @@ class OrganizerEventController extends Controller
         ], true), 403, 'Event dengan status ini tidak dapat diedit.');
 
         $data = $this->validated($request);
+        $eventDays = $data['event_days'];
+        unset($data['event_days']);
 
         $event->update([
             ...$data,
@@ -118,6 +124,7 @@ class OrganizerEventController extends Controller
             'banner_path' => $this->storeBanner($request, $event->banner_path),
         ]);
 
+        $this->syncEventDays($event, $eventDays);
         $this->syncPerformers($event, $data['performers'] ?? []);
 
         return redirect()
@@ -168,22 +175,49 @@ class OrganizerEventController extends Controller
      */
     private function validated(Request $request): array
     {
+        $isMulti = $request->input('duration_type') === 'multi_day';
+        $totalDays = (int) ($request->input('total_days') ?? 1);
+
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string'],
             'venue_name' => ['required', 'string', 'max:150'],
             'city' => ['required', 'string', 'max:100'],
             'address' => ['required', 'string', 'max:255'],
-            'event_date' => ['required', 'date', 'after:today'],
+            'duration_type' => ['sometimes', 'required', Rule::in(['single', 'multi_day'])],
+            'total_days' => ['sometimes', 'required', 'integer', 'min:1', 'max:30'],
+            'event_date' => $isMulti ? ['nullable', 'date'] : ['required', 'date', 'after:today'],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['nullable', 'date_format:H:i'],
             'open_gate' => ['nullable', 'date'],
-            'close_gate' => ['nullable', 'date', 'after:open_gate'],
+            'close_gate' => $isMulti ? ['nullable', 'date'] : ['nullable', 'date', 'after:open_gate'],
+            'event_days' => $isMulti ? ['required', 'array', 'size:'.$totalDays] : ['nullable', 'array'],
+            'event_days.*.day_number' => ['required', 'integer', 'distinct', 'min:1', 'max:30'],
+            'event_days.*.date' => $isMulti ? ['required', 'date', 'after:today'] : ['nullable', 'date'],
+            'event_days.*.open_gate' => ['nullable', 'date'],
+            'event_days.*.close_gate' => ['nullable', 'date', 'after:event_days.*.open_gate'],
             'status' => ['required', Rule::enum(EventStatus::class)->only([EventStatus::Draft, EventStatus::Pending])],
             'banner' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:2048'],
             'performers' => ['nullable', 'array'],
             'performers.*' => ['string', 'max:120'],
         ]);
+
+        $durationType = $validated['duration_type'] ?? 'single';
+        $totalDays = (int) ($validated['total_days'] ?? 1);
+
+        $eventDays = $isMulti
+            ? collect($validated['event_days'])->map(fn (array $day) => [
+                'day_number' => $day['day_number'],
+                'date' => $day['date'],
+                'open_gate' => $this->toUtcWib($day['open_gate'] ?? null),
+                'close_gate' => $this->toUtcWib($day['close_gate'] ?? null),
+            ])->values()->all()
+            : [[
+                'day_number' => 1,
+                'date' => $validated['event_date'],
+                'open_gate' => $this->toUtcWib($validated['open_gate'] ?? null),
+                'close_gate' => $this->toUtcWib($validated['close_gate'] ?? null),
+            ]];
 
         return [
             'title' => $validated['title'],
@@ -191,14 +225,43 @@ class OrganizerEventController extends Controller
             'venue_name' => $validated['venue_name'],
             'city' => $validated['city'],
             'address' => $validated['address'],
-            'event_date' => $validated['event_date'],
+            'event_date' => $isMulti ? $eventDays[0]['date'] : $validated['event_date'],
+            'duration_type' => $durationType,
+            'total_days' => $totalDays,
             'start_time' => $validated['start_time'],
             'end_time' => $validated['end_time'] ?? null,
-            'open_gate' => $this->toUtcWib($validated['open_gate'] ?? null),
-            'close_gate' => $this->toUtcWib($validated['close_gate'] ?? null),
+            'open_gate' => $isMulti ? null : $this->toUtcWib($validated['open_gate'] ?? null),
+            'close_gate' => $isMulti ? null : $this->toUtcWib($validated['close_gate'] ?? null),
             'status' => $validated['status'],
             'performers' => $this->normalizePerformers($validated['performers'] ?? []),
+            'event_days' => $eventDays,
         ];
+    }
+
+    /**
+     * @param  array<int, array{day_number: int, date: string, open_gate?: ?string, close_gate?: ?string}>  $days
+     */
+    private function syncEventDays(Event $event, array $days): void
+    {
+        $numbers = collect($days)->pluck('day_number')->all();
+
+        foreach ($days as $day) {
+            $event->eventDays()->updateOrCreate(
+                ['day_number' => $day['day_number']],
+                [
+                    'date' => $day['date'],
+                    'open_gate' => $day['open_gate'] ?? null,
+                    'close_gate' => $day['close_gate'] ?? null,
+                ],
+            );
+        }
+
+        foreach ($event->eventDays()->whereNotIn('day_number', $numbers)->get() as $day) {
+            abort_if($day->ticketScans()->exists() || $day->ticketCategories()->exists(), 422,
+                'Jadwal hari tidak dapat dihapus karena sudah memiliki data tiket.');
+
+            $day->delete();
+        }
     }
 
     /**
@@ -282,6 +345,17 @@ class OrganizerEventController extends Controller
             'city' => $event->city,
             'address' => $event->address,
             'event_date' => $event->event_date?->format('Y-m-d'),
+            'duration_type' => $event->duration_type,
+            'total_days' => $event->total_days,
+            'event_days' => $event->eventDays
+                ->map(fn (EventDay $day) => [
+                    'day_number' => $day->day_number,
+                    'date' => $day->date?->format('Y-m-d'),
+                    'open_gate' => $this->wibInput($day->open_gate),
+                    'close_gate' => $this->wibInput($day->close_gate),
+                ])
+                ->values()
+                ->all(),
             'start_time' => $event->start_time,
             'end_time' => $event->end_time,
             'open_gate' => $this->wibInput($event->open_gate),

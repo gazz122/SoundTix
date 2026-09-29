@@ -1,11 +1,11 @@
-import { Link } from '@inertiajs/react';
+﻿import { Link } from '@inertiajs/react';
 import { formatDate, rupiah } from '@/lib/format';
 
 export default function EventCard({ event }) {
     return (
         <Link
             href={`/events/${event.slug}`}
-            className="group block bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200"
+            className="group block bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm hover:shadow-sm hover:border-slate-300 transition-all duration-200"
         >
             <div className="h-36 relative">
                 {event.banner_url ? (
@@ -31,12 +31,12 @@ export default function EventCard({ event }) {
                     {event.title}
                 </h3>
                 <p className="mt-1 text-sm text-slate-500">
-                    {event.city} · {event.venue_name}
+                    {event.city} Â· {event.venue_name}
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
                     {event.performers.slice(0, 2).map((performer) => performer.name).join(', ')}
                 </p>
-                <p className="mt-3 text-sm font-semibold text-indigo-600">
+                <p className="mt-3 text-sm font-semibold text-indigo-600 tabular-nums">
                     {event.starting_price ? `Mulai ${rupiah(event.starting_price)}` : 'Harga menyusul'}
                 </p>
             </div>

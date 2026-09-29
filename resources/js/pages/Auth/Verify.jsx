@@ -1,6 +1,6 @@
 import { router, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
-import logo from '../../../../assets/logo.png';
+import Logo from '@/components/Logo';
 
 export default function Verify({ email }) {
     const { flash } = usePage().props;
@@ -24,7 +24,9 @@ export default function Verify({ email }) {
         <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex items-center justify-center px-4 py-10">
             <div className="w-full max-w-md">
                 <div className="mb-8 text-center">
-                    <img src={logo} alt="SoundTix" className="mx-auto mb-4 h-14 w-14 rounded-2xl object-contain shadow-sm" />
+                    <div className="mx-auto mb-4 flex w-fit items-center gap-2.5">
+                        <Logo iconClassName="h-14 w-14" textClassName="text-2xl font-semibold" />
+                    </div>
                     <h1 className="text-2xl font-semibold text-slate-900">Verifikasi Email</h1>
                     <p className="mt-1 text-sm text-slate-500">
                         Kode 6 digit sudah dikirim ke <span className="font-medium text-slate-700">{email}</span>.

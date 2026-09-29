@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatDate, rupiah } from '@/lib/format';
 
 export default function CartDrawer({
@@ -77,7 +77,7 @@ export default function CartDrawer({
                 aria-modal="true"
                 aria-label="Keranjang Tiket"
                 aria-hidden={!open}
-                className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border border-slate-200/80 bg-slate-50/95 shadow-2xl shadow-slate-900/10 backdrop-blur-xl transition-[transform,visibility] duration-300 ease-out"
+                className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border border-slate-200/80 bg-slate-50/95 shadow-xl shadow-slate-900/10 backdrop-blur-xl transition-[transform,visibility] duration-300 ease-out"
                 style={{
                     transform: open ? 'translateX(0)' : 'translateX(100%)',
                     visibility: open ? 'visible' : 'hidden',
@@ -121,7 +121,7 @@ export default function CartDrawer({
                                             <div className="min-w-0">
                                                 <p className="font-medium text-slate-900">{item.name}</p>
                                                 <p className="mt-0.5 text-sm text-slate-500">
-                                                    {rupiah(item.price)} × {item.quantity}
+                                                    {rupiah(item.price)} Ã— {item.quantity}
                                                 </p>
                                             </div>
                                             <p className="shrink-0 font-semibold text-slate-900">
@@ -167,7 +167,7 @@ export default function CartDrawer({
                                 })),
                         })}
                         disabled={!canCheckout}
-                        className="mt-5 w-full bg-gradient-to-r from-slate-900 to-indigo-950 hover:from-slate-800 hover:to-indigo-900 active:scale-[0.98] text-white font-medium py-3 px-5 rounded-xl transition-all duration-200 shadow-lg shadow-indigo-950/20 hover:shadow-xl hover:shadow-indigo-950/25 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="mt-5 w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-medium py-3 px-5 rounded-xl transition-all duration-200 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         {processing ? 'Memproses...' : 'Lanjut ke Pembayaran'}
                     </button>
@@ -175,7 +175,7 @@ export default function CartDrawer({
                     <div className="mt-3 flex items-center justify-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-2">
                         <ShieldCheckIcon />
                         <span className="text-xs font-medium text-emerald-800">
-                            Garansi aman — transaksi terenkripsi
+                            Garansi aman â€” transaksi terenkripsi
                         </span>
                     </div>
                 </footer>
@@ -213,7 +213,7 @@ function EventSummary({ event }) {
             <div className="min-w-0">
                 <p className="truncate font-semibold text-slate-900">{event.title}</p>
                 <p className="truncate text-sm text-slate-500">
-                    {event.city} · {event.venue_name}
+                    {event.city} Â· {event.venue_name}
                 </p>
             </div>
         </div>

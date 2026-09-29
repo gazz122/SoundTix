@@ -38,8 +38,13 @@ class SecurityConcurrencyFeatureTest extends TestCase
         ]);
     }
 
-    public function test_ticket_consumption_is_atomic_for_repeated_validation(): void
+    public function test_ticket_scan_is_atomic_per_event_day(): void
     {
+        $event = Event::factory()->published()->create();
+        $eventDay = $event->eventDays()->create([
+            'day_number' => 1,
+            'date' => today()->toDateString(),
+        ]);
         $ticket = Ticket::create([
             'order_item_id' => OrderItem::factory()->create()->id,
             'ticket_code' => 'STXTESTCODE01',
@@ -48,9 +53,10 @@ class SecurityConcurrencyFeatureTest extends TestCase
         ]);
         $repository = app(TicketRepository::class);
 
-        $this->assertSame(1, $repository->markUsedGuarded($ticket->id, User::factory()->gatekeeper()->create()->id));
-        $this->assertSame(0, $repository->markUsedGuarded($ticket->id, User::factory()->gatekeeper()->create()->id));
-        $this->assertSame('used', $ticket->fresh()->status);
+        $this->assertTrue($repository->recordScanGuarded($ticket->id, $eventDay->id, User::factory()->gatekeeper()->create()->id));
+        $this->assertFalse($repository->recordScanGuarded($ticket->id, $eventDay->id, User::factory()->gatekeeper()->create()->id));
+        $this->assertSame(1, $ticket->ticketScans()->count());
+        $this->assertSame('active', $ticket->fresh()->status);
     }
 
     public function test_order_expiration_guard_is_atomic_for_repeated_workers(): void

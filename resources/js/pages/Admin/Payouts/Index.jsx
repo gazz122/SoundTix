@@ -71,7 +71,7 @@ export default function Index({ payouts }) {
                                                 <button
                                                     type="button"
                                                     onClick={() => setProcessing(payout)}
-                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-all shadow-sm"
+                                                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-all shadow-sm"
                                                 >
                                                     Proses Transfer
                                                 </button>
@@ -156,7 +156,7 @@ function ProcessModal({ payout, onClose }) {
                         <button
                             type="submit"
                             disabled={processing}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium py-2 px-5 rounded-lg transition-all shadow-sm disabled:opacity-60"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 px-5 rounded-lg transition-all shadow-sm disabled:opacity-60"
                         >
                             {processing ? 'Menyimpan…' : 'Simpan & Tandai Selesai'}
                         </button>

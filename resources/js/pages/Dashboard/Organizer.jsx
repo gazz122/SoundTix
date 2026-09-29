@@ -68,7 +68,7 @@ export default function Organizer({ stats }) {
                                             <g key={dataPoint.date}>
                                                 <title>{`${dataPoint.date}\n${rupiah(dataPoint.revenue)} (${dataPoint.orders} pesanan)`}</title>
                                                 <circle cx={x} cy={y} r="5" className="fill-white stroke-indigo-600" strokeWidth="3" />
-                                                <text x={x} y="155" textAnchor="middle" className="fill-slate-400 text-[10px]">
+                                                <text x={x} y="155" textAnchor="middle" className="fill-slate-400 text-[11px]">
                                                     {new Date(dataPoint.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
                                                 </text>
                                             </g>

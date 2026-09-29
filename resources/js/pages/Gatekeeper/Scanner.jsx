@@ -1,7 +1,7 @@
-import { Link, router, usePage } from '@inertiajs/react';
+﻿import { Link, router, usePage } from '@inertiajs/react';
 import jsQR from 'jsqr';
 import { useEffect, useRef, useState } from 'react';
-import logo from '../../../../assets/logo.png';
+import Logo from '@/components/Logo';
 
 export default function Scanner({ rundowns = [] }) {
     const { flash } = usePage().props;
@@ -144,11 +144,11 @@ export default function Scanner({ rundowns = [] }) {
     };
 
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-800 font-sans">
+        <div className="dark min-h-screen bg-slate-950 text-slate-800 font-sans">
             <header className="border-b border-slate-800/60 bg-slate-950/95 backdrop-blur sticky top-0 z-20">
                 <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
                     <Link href="/dashboard/scan" className="flex items-center gap-3">
-                        <img src={logo} alt="SoundTix" className="h-9 w-9 rounded-xl object-contain bg-white p-0.5" />
+                        <Logo dark withText={false} iconClassName="h-9 w-9" />
                         <div>
                             <p className="text-base font-semibold leading-tight text-white">Scanner Tiket</p>
                             <p className="text-xs text-slate-400">Validasi masuk penonton</p>
@@ -242,7 +242,7 @@ export default function Scanner({ rundowns = [] }) {
                                     <button
                                         type="button"
                                         onClick={startCamera}
-                                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-5 rounded-lg transition-all shadow-sm"
+                                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white dark:text-slate-950 font-medium py-2.5 px-5 rounded-lg transition-all shadow-sm"
                                     >
                                         Mulai Kamera
                                     </button>
@@ -299,7 +299,7 @@ function ValidationResult({ result }) {
     return (
         <div className={`border rounded-xl p-5 shadow-lg ${panelClass}`}>
             <div className="flex items-center gap-3">
-                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white font-bold ${badgeClass}`}>
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white font-bold dark:text-slate-950 ${badgeClass}`}>
                     {accepted ? '✓' : '!'}
                 </span>
                 <div>

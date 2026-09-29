@@ -4,6 +4,8 @@ namespace App\Repositories;
 
 use App\Enums\TicketStatus;
 use App\Models\Ticket;
+use App\Models\TicketScan;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 
 class TicketRepository
@@ -29,15 +31,25 @@ class TicketRepository
             ->first();
     }
 
-    public function markUsedGuarded(int $ticketId, int $validatorId): int
+    /**
+     * Record a ticket entry for a specific concert day. The (ticket, day)
+     * unique key guarantees a ticket can only be scanned once per day even
+     * under concurrent requests.
+     */
+    public function recordScanGuarded(int $ticketId, int $eventDayId, int $gatekeeperId): bool
     {
-        return Ticket::whereKey($ticketId)
-            ->where('status', TicketStatus::Active->value)
-            ->update([
-                'status' => TicketStatus::Used->value,
-                'used_at' => now(),
-                'validated_by' => $validatorId,
+        try {
+            TicketScan::create([
+                'ticket_id' => $ticketId,
+                'event_day_id' => $eventDayId,
+                'scanned_at' => now(),
+                'gatekeeper_id' => $gatekeeperId,
             ]);
+
+            return true;
+        } catch (UniqueConstraintViolationException) {
+            return false;
+        }
     }
 
     public function countValidatedBySince(int $validatorId, Carbon $date): int

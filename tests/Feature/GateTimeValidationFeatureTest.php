@@ -20,14 +20,18 @@ class GateTimeValidationFeatureTest extends TestCase
     }
 
     /**
-     * Create an issued ticket for an event with the given gate window.
+     * Create an issued ticket for an event whose concert day (today) has the
+     * given gate window.
      *
      * @param  array{open: Carbon, close: Carbon}  $gates
      */
     private function activeTicket(array $gates): Ticket
     {
         $customer = User::factory()->create();
-        $event = Event::factory()->published()->create([
+        $event = Event::factory()->published()->create();
+        $event->eventDays()->create([
+            'day_number' => 1,
+            'date' => today()->toDateString(),
             'open_gate' => $gates['open'],
             'close_gate' => $gates['close'],
         ]);
@@ -70,7 +74,7 @@ class GateTimeValidationFeatureTest extends TestCase
         $this->actingAs($this->gatekeeper())
             ->post('/dashboard/scan/validate', ['payload' => $ticket->qr_payload])
             ->assertSessionHas('scan_result.status', 'not_open')
-            ->assertSessionHas('scan_result.message', fn (string $value) => str_contains($value, 'Pintu Belum Dibuka'));
+            ->assertSessionHas('scan_result.message', fn (string $value) => str_contains($value, 'Pintu Day 1 belum dibuka'));
 
         $this->assertSame('active', $ticket->fresh()->status);
     }
@@ -85,7 +89,7 @@ class GateTimeValidationFeatureTest extends TestCase
         $this->actingAs($this->gatekeeper())
             ->post('/dashboard/scan/validate', ['payload' => $ticket->qr_payload])
             ->assertSessionHas('scan_result.status', 'closed')
-            ->assertSessionHas('scan_result.message', fn (string $value) => str_contains($value, 'Pintu Sudah Ditutup'));
+            ->assertSessionHas('scan_result.message', fn (string $value) => str_contains($value, 'Pintu Day 1 sudah ditutup'));
 
         $this->assertSame('active', $ticket->fresh()->status);
     }
@@ -101,7 +105,8 @@ class GateTimeValidationFeatureTest extends TestCase
             ->post('/dashboard/scan/validate', ['payload' => $ticket->qr_payload])
             ->assertSessionHas('scan_result.status', 'success');
 
-        $this->assertSame('used', $ticket->fresh()->status);
+        $this->assertSame('active', $ticket->fresh()->status);
+        $this->assertSame(1, $ticket->fresh()->ticketScans()->count());
     }
 
     public function test_api_scan_respects_gate_window(): void
@@ -112,7 +117,7 @@ class GateTimeValidationFeatureTest extends TestCase
             ->postJson('/api/v1/tickets/validate', ['payload' => $closed->qr_payload])
             ->assertOk()
             ->assertJsonPath('status', 'not_open')
-            ->assertJsonPath('message', fn (string $value) => str_contains($value, 'Pintu Belum Dibuka'));
+            ->assertJsonPath('message', fn (string $value) => str_contains($value, 'Pintu Day 1 belum dibuka'));
 
         $this->assertSame('active', $closed->fresh()->status);
 
@@ -123,6 +128,7 @@ class GateTimeValidationFeatureTest extends TestCase
             ->assertOk()
             ->assertJsonPath('status', 'success');
 
-        $this->assertSame('used', $open->fresh()->status);
+        $this->assertSame('active', $open->fresh()->status);
+        $this->assertSame(1, $open->fresh()->ticketScans()->count());
     }
 }

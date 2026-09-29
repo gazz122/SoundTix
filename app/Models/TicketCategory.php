@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable([
     'event_id',
     'name',
+    'access_type',
+    'event_day_id',
     'description',
     'price',
     'total_quantity',
@@ -36,6 +38,11 @@ class TicketCategory extends Model
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
+    }
+
+    public function eventDay(): BelongsTo
+    {
+        return $this->belongsTo(EventDay::class);
     }
 
     public function orderItems(): HasMany

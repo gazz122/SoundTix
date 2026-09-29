@@ -1,6 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
-import logo from '../../../assets/logo.png';
+import Logo from '@/components/Logo';
+import { RoleBadge } from '@/components/RoleBadge';
 
 const navigation = {
     customer: [
@@ -45,6 +46,17 @@ export default function AppLayout({ children }) {
                         ))}
                     </nav>
                     <div className="mt-auto pt-8">
+                        {user && (
+                            <div className="mb-3 flex items-center gap-3 rounded-lg border border-slate-200/80 bg-white px-3 py-2 shadow-sm">
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-sm font-semibold text-white">
+                                    {user.name.charAt(0).toUpperCase()}
+                                </span>
+                                <div className="min-w-0">
+                                    <p className="truncate text-sm font-medium text-slate-900">{user.name}</p>
+                                    <RoleBadge role={user.role} />
+                                </div>
+                            </div>
+                        )}
                         <LogoutButton />
                     </div>
                 </aside>
@@ -80,20 +92,32 @@ export default function AppLayout({ children }) {
                     )}
 
                     <main className="flex-1 py-8">{children}</main>
+
+                    {user?.role === 'organizer' && (
+                        <Link
+                            href="/organizer/events/create"
+                            className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-xl shadow-slate-900/10 transition-transform hover:scale-105 lg:hidden"
+                            aria-label="Buat event baru"
+                        >
+                            <svg aria-hidden="true" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                            </svg>
+                        </Link>
+                    )}
                 </div>
             </div>
         </div>
     );
 }
 
-function Brand() {
+function Brand({ compact = false }) {
     return (
         <Link href="/dashboard" className="flex items-center gap-3">
-            <img src={logo} alt="SoundTix" className="h-10 w-10 rounded-xl object-contain shadow-sm" />
-            <div>
-                <p className="text-lg font-semibold leading-tight text-slate-900">SoundTix</p>
-                <p className="text-xs text-slate-500">Konser Digital</p>
-            </div>
+            <Logo
+                iconClassName={`h-10 w-10 ${compact ? '!h-9 !w-9' : ''}`}
+                textClassName={`font-semibold leading-tight ${compact ? '!text-base' : 'text-lg'}`}
+                subText="Konser Digital"
+            />
         </Link>
     );
 }
@@ -103,7 +127,7 @@ function NavItem({ label, href }) {
         return (
             <span className="flex items-center justify-between rounded-lg px-3 py-2 text-sm text-slate-400 cursor-not-allowed">
                 {label}
-                <span className="text-[10px] font-medium uppercase tracking-wider bg-slate-100 border border-slate-200 text-slate-500 px-2 py-0.5 rounded-md">
+                <span className="text-[11px] font-medium uppercase tracking-wider bg-slate-100 border border-slate-200 text-slate-500 px-2 py-0.5 rounded-md">
                     Segera
                 </span>
             </span>
@@ -147,7 +171,7 @@ function NotificationBell() {
                 <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
             </svg>
             {unreadCount > 0 && (
-                <span className="absolute -right-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                <span className="absolute -right-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-indigo-600 px-1.5 py-0.5 text-[11px] font-semibold text-white">
                     {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
             )}

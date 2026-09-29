@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Enums\TicketStatus;
-use App\Models\Event;
+use App\Models\EventDay;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Repositories\TicketRepository;
@@ -13,7 +13,9 @@ class TicketValidationService
     public function __construct(private TicketRepository $tickets) {}
 
     /**
-     * Validate a QR payload and consume the ticket if it is still active.
+     * Validate a QR payload for the concert day matching today's date. A single
+     * ticket stays valid for every day of the event; each day is recorded in
+     * `ticket_scans` instead of consuming the ticket.
      *
      * @return array{status: string, message: string, ticket: array<string, mixed>|null}
      */
@@ -31,52 +33,78 @@ class TicketValidationService
             return $this->result('invalid', 'Tiket tidak ditemukan di sistem SoundTix.');
         }
 
-        $gate = $this->gateResult($ticket->orderItem?->ticketCategory?->event);
+        $eventDay = $this->todayEventDay($ticket);
+
+        if ($eventDay === null) {
+            return $this->result('no_event_day', 'Tidak ada jadwal event untuk hari ini.', $ticket);
+        }
+
+        $gate = $this->gateResult($eventDay);
 
         if ($gate !== null) {
             return $this->result($gate['status'], $gate['message'], $ticket);
         }
 
         if ($ticket->status !== TicketStatus::Active->value) {
-            return $this->rejected($ticket->refresh());
+            return $this->rejected($ticket);
         }
 
-        $consumed = $this->tickets->markUsedGuarded($ticket->id, $validator->id);
+        $recorded = $this->tickets->recordScanGuarded($ticket->id, $eventDay->id, $validator->id);
 
-        if ($consumed !== 1) {
-            return $this->rejected($ticket->refresh());
+        if ($recorded) {
+            return $this->result(
+                'success',
+                sprintf('Tiket Valid! Silakan masuk untuk Day %d.', $eventDay->day_number),
+                $ticket->refresh(),
+            );
         }
 
-        return $this->result('success', 'Tiket valid. Silakan dipersilakan masuk.', $ticket->refresh());
+        $existing = $ticket->ticketScans()->where('event_day_id', $eventDay->id)->first();
+
+        return $this->result(
+            'already_scanned',
+            sprintf(
+                'Tiket untuk Day %d sudah pernah di-scan hari ini pada jam %s WIB.',
+                $eventDay->day_number,
+                $this->wib($existing?->scanned_at ?? now()),
+            ),
+            $ticket->refresh(),
+        );
+    }
+
+    private function todayEventDay(Ticket $ticket): ?EventDay
+    {
+        return $ticket->orderItem?->ticketCategory?->event
+            ?->eventDays()
+            ->whereDate('date', now()->toDateString())
+            ->first();
     }
 
     /**
-     * Check whether the gate is open yet or already closed for the ticket's event.
+     * Check whether the gate for the concert day is open yet or already closed.
      *
      * @return array{status: string, message: string}|null
      */
-    private function gateResult(?Event $event): ?array
+    private function gateResult(EventDay $eventDay): ?array
     {
-        if ($event === null) {
-            return null;
-        }
-
-        if ($event->open_gate !== null && now()->lt($event->open_gate)) {
+        if ($eventDay->open_gate !== null && now()->lt($eventDay->open_gate)) {
             return [
                 'status' => 'not_open',
                 'message' => sprintf(
-                    'Pintu Belum Dibuka! Scan baru dapat dilakukan pada jam %s WIB.',
-                    $this->wib($event->open_gate),
+                    'Pintu Day %d belum dibuka. Scan dimulai jam %s WIB.',
+                    $eventDay->day_number,
+                    $this->wib($eventDay->open_gate),
                 ),
             ];
         }
 
-        if ($event->close_gate !== null && now()->gt($event->close_gate)) {
+        if ($eventDay->close_gate !== null && now()->gt($eventDay->close_gate)) {
             return [
                 'status' => 'closed',
                 'message' => sprintf(
-                    'Pintu Sudah Ditutup! Pintu masuk telah ditutup pada jam %s WIB.',
-                    $this->wib($event->close_gate),
+                    'Pintu Day %d sudah ditutup sejak jam %s WIB.',
+                    $eventDay->day_number,
+                    $this->wib($eventDay->close_gate),
                 ),
             ];
         }

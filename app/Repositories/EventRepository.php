@@ -49,7 +49,7 @@ class EventRepository
 
     public function forOrganizer(int $organizerId): Collection
     {
-        return Event::with('performers:id,name')
+        return Event::with('performers:id,name', 'eventDays')
             ->withCount('ticketCategories')
             ->where('organizer_id', $organizerId)
             ->orderByDesc('updated_at')

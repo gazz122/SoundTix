@@ -1,9 +1,242 @@
 @import 'tailwindcss';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
+/* SoundTix design system — see docs/design.md */
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+        'Noto Color Emoji';
+    --font-heading: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+    --radius-2xl: 1.5rem;
+
+    /* Max content width 1200px (docs/design.md 5.1) */
+    --container-6xl: 75rem;
+    --container-7xl: 75rem;
+
+    /* Neutrals (lavender) */
+    --color-slate-50: #f8f7fc;
+    --color-slate-100: #efedf6;
+    --color-slate-200: #e4e1ee;
+    --color-slate-300: #d8d5e6;
+    --color-slate-400: #a9a6bc;
+    --color-slate-500: #6a6780;
+    --color-slate-600: #545168;
+    --color-slate-700: #3d3a4d;
+    --color-slate-800: #2c2a38;
+    --color-slate-900: #23212e;
+    --color-slate-950: #16151d;
+
+    /* Primary — Sound Violet */
+    --color-indigo-50: #eee9fb;
+    --color-indigo-100: #e6dff8;
+    --color-indigo-200: #d0c6f3;
+    --color-indigo-300: #b3a5ec;
+    --color-indigo-400: #937fdf;
+    --color-indigo-500: #7e6cd8;
+    --color-indigo-600: #6b46d1;
+    --color-indigo-700: #5835b3;
+    --color-indigo-800: #462a8f;
+    --color-indigo-900: #372273;
+    --color-indigo-950: #241449;
+
+    /* Accent — Sound Cyan */
+    --color-orange-50: #e8fbfd;
+    --color-orange-100: #d3f5fa;
+    --color-orange-200: #b0edf5;
+    --color-orange-300: #8eddeb;
+    --color-orange-400: #76d7e6;
+    --color-orange-500: #6fd3e6;
+    --color-orange-600: #56c0d6;
+    --color-orange-700: #1b7a88;
+    --color-orange-800: #17666f;
+
+    /* Secondary brand — Sound Blue (info) */
+    --color-blue-50: #e6effa;
+    --color-blue-100: #d5e2f6;
+    --color-blue-200: #b7ccea;
+    --color-blue-300: #8fb0de;
+    --color-blue-400: #5f8fd1;
+    --color-blue-500: #457fc7;
+    --color-blue-600: #2f6fc8;
+    --color-blue-700: #2a5fa8;
+    --color-blue-800: #234d87;
+    --color-blue-900: #1d3e6d;
+    --color-sky-50: #e6effa;
+    --color-sky-100: #d6dfed;
+    --color-sky-200: #b7ccea;
+    --color-sky-600: #2f6fc8;
+    --color-sky-700: #2a5fa8;
+
+    /* Sound Cyan — layar panel pembelian & badge kategori (docs/design.md 2.2) */
+    --color-cyan-50: #e8fbfd;
+    --color-cyan-100: #d6f5fa;
+    --color-cyan-200: #b0edf5;
+    --color-cyan-300: #8eddeb;
+    --color-cyan-400: #65d0f4;
+    --color-cyan-500: #56c0d6;
+    --color-cyan-600: #2f9db5;
+    --color-cyan-700: #1b7a88;
+    --color-cyan-800: #17666f;
+
+    /* Success */
+    --color-emerald-50: #e6f0e8;
+    --color-emerald-100: #d3e4d7;
+    --color-emerald-200: #afcab7;
+    --color-emerald-300: #86ae90;
+    --color-emerald-400: #669c72;
+    --color-emerald-500: #4f8a5b;
+    --color-emerald-600: #4f8a5b;
+    --color-emerald-700: #3f6f4a;
+    --color-emerald-800: #34593d;
+    --color-emerald-900: #2b4a32;
+
+    /* Warning (desaturated amber) */
+    --color-amber-50: #f6eedc;
+    --color-amber-100: #efe2c3;
+    --color-amber-200: #e0c992;
+    --color-amber-300: #cdab61;
+    --color-amber-400: #c29642;
+    --color-amber-500: #b7862f;
+    --color-amber-600: #9a7126;
+    --color-amber-700: #7c5b1f;
+    --color-amber-800: #614819;
+    --color-amber-900: #4f3a14;
+
+    /* Destructive (rose + red) */
+    --color-rose-50: #f5e3e1;
+    --color-rose-100: #ecd0cc;
+    --color-rose-200: #e0b2ac;
+    --color-rose-300: #ce8f87;
+    --color-rose-400: #c66a62;
+    --color-rose-500: #b5534a;
+    --color-rose-600: #b5534a;
+    --color-rose-700: #823d36;
+    --color-rose-800: #67322c;
+    --color-rose-900: #552a25;
+    --color-red-50: #f5e3e1;
+    --color-red-100: #ecd0cc;
+    --color-red-200: #e0b2ac;
+    --color-red-300: #ce8f87;
+    --color-red-400: #c66a62;
+    --color-red-500: #b5534a;
+    --color-red-600: #b5534a;
+    --color-red-700: #823d36;
+}
+
+@layer base {
+    h1, h2, h3, h4, h5, h6 {
+        font-family: var(--font-heading);
+    }
+
+    :focus-visible {
+        outline: 2px solid var(--color-indigo-600);
+        outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+            scroll-behavior: auto !important;
+        }
+    }
+}
+
+/* Dark mode (default Gatekeeper, sesuai docs/design.md) */
+.dark {
+    color-scheme: dark;
+
+    /* Neutrals — ungu gelap redup, bukan hitam pekat */
+    --color-slate-50: #1b1926;
+    --color-slate-100: #eceaf4;
+    --color-slate-200: #e4e2ee;
+    --color-slate-300: #cdcbdd;
+    --color-slate-400: #b9b7c9;
+    --color-slate-500: #a4a1b8;
+    --color-slate-600: #4a4758;
+    --color-slate-700: #363345;
+    --color-slate-800: #2a2836;
+    --color-slate-900: #1f1d29;
+    --color-slate-950: #16151d;
+
+    /* Primary — Sound Violet (dark) */
+    --color-indigo-50: #2c2645;
+    --color-indigo-100: #342d52;
+    --color-indigo-200: #40396a;
+    --color-indigo-300: #b5a3ec;
+    --color-indigo-400: #a58bf0;
+    --color-indigo-500: #a58bf0;
+    --color-indigo-600: #a58bf0;
+    --color-indigo-700: #bfaef5;
+
+    /* Accent — Sound Cyan (dark) */
+    --color-orange-200: #20343c;
+    --color-orange-500: #8eddeb;
+
+    /* Secondary brand — Sound Blue (dark) */
+    --color-blue-50: #1f2b40;
+    --color-blue-100: #25334c;
+    --color-blue-200: #2c3f60;
+    --color-blue-500: #7fa9e8;
+    --color-blue-600: #7fa9e8;
+    --color-blue-700: #a9c5f0;
+    --color-sky-200: #2c3f60;
+    --color-sky-100: #1f2b40;
+    --color-sky-600: #7fa9e8;
+    --color-sky-700: #a9c5f0;
+
+    /* Sound Cyan (dark) */
+    --color-cyan-50: #20343c;
+    --color-cyan-100: #20343c;
+    --color-cyan-200: #20343c;
+    --color-cyan-300: #8eddeb;
+    --color-cyan-400: #8eddeb;
+    --color-cyan-500: #7fd3e3;
+    --color-cyan-600: #a3e2ec;
+    --color-cyan-700: #a3e2ec;
+    --color-cyan-800: #bcebf2;
+
+    /* Status soft + solid (dark) */
+    --color-emerald-50: #1e2b22;
+    --color-emerald-100: #293a2e;
+    --color-emerald-200: #3b5943;
+    --color-emerald-300: #6fa07b;
+    --color-emerald-400: #7db08a;
+    --color-emerald-500: #7db08a;
+    --color-emerald-600: #8cc09a;
+    --color-emerald-700: #9dc6a7;
+
+    --color-amber-50: #2e2818;
+    --color-amber-100: #3d331f;
+    --color-amber-200: #59491f;
+    --color-amber-300: #c29642;
+    --color-amber-400: #d4a85a;
+    --color-amber-500: #d4a85a;
+    --color-amber-600: #dfb56c;
+    --color-amber-700: #e2bd78;
+
+    --color-rose-50: #2b2323;
+    --color-rose-100: #3a2d2b;
+    --color-rose-200: #5b3430;
+    --color-rose-300: #b76a62;
+    --color-rose-400: #d27a70;
+    --color-rose-500: #d27a70;
+    --color-rose-600: #de8b81;
+    --color-rose-700: #e3a098;
+    --color-red-50: #2b2323;
+    --color-red-100: #3a2d2b;
+    --color-red-200: #5b3430;
+    --color-red-300: #b76a62;
+    --color-red-400: #d27a70;
+    --color-red-500: #d27a70;
+    --color-red-600: #de8b81;
+    --color-red-700: #e3a098;
 }

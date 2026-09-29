@@ -3,6 +3,8 @@ import { useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import StatusBadge from '@/components/StatusBadge';
 
+const MAX_DAYS = 30;
+
 export default function Form({ event }) {
     const isEdit = Boolean(event);
 
@@ -13,6 +15,9 @@ export default function Form({ event }) {
         city: event?.city ?? '',
         address: event?.address ?? '',
         event_date: event?.event_date ?? '',
+        duration_type: event?.duration_type ?? 'single',
+        total_days: event?.total_days ?? 1,
+        event_days: event?.event_days ?? [],
         start_time: event?.start_time ?? '19:00',
         end_time: event?.end_time ?? '',
         open_gate: event?.open_gate ?? '',
@@ -24,9 +29,9 @@ export default function Form({ event }) {
 
     const [previewUrl, setPreviewUrl] = useState(event?.banner_url ?? null);
 
-    transform((data) => ({
-        ...data,
-        performers: data.performers
+    transform((previous) => ({
+        ...previous,
+        performers: previous.performers
             .split('\n')
             .map((name) => name.trim())
             .filter((name) => name !== ''),
@@ -36,6 +41,34 @@ export default function Form({ event }) {
         if (!file) return;
         setData('banner', file);
         setPreviewUrl(URL.createObjectURL(file));
+    }
+
+    function handleDurationType(value) {
+        if (value === 'multi_day' && data.event_days.length === 0) {
+            handleTotalDays(data.total_days);
+            return;
+        }
+        setData('duration_type', value);
+    }
+
+    function handleTotalDays(value) {
+        const days = Math.min(MAX_DAYS, Math.max(0, Number(value) || 0));
+        const current = data.event_days;
+        const next = Array.from({ length: days }, (_, index) => {
+            const number = index + 1;
+            const existing = current.find((day) => Number(day.day_number) === number);
+            return existing ?? { day_number: number, date: '', open_gate: '', close_gate: '' };
+        });
+
+        setData((data) => ({ ...data, total_days: days, event_days: next }));
+    }
+
+    function updateDay(index, key, value) {
+        setData('event_days', data.event_days.map((day, i) => (i === index ? { ...day, [key]: value } : day)));
+    }
+
+    function dayError(index, key) {
+        return errors[`event_days.${index}.${key}`];
     }
 
     function submit(eventSubmit) {
@@ -114,18 +147,108 @@ export default function Form({ event }) {
                         <Field label="Kota" value={data.city} onChange={(value) => setData('city', value)} error={errors.city} placeholder="cth: Jakarta" />
                     </div>
                     <Field label="Alamat Lengkap" value={data.address} onChange={(value) => setData('address', value)} error={errors.address} placeholder="Jalan, kompleks, patokan" />
-                    <div className="grid gap-4 sm:grid-cols-3">
-                        <Field label="Tanggal Event" type="date" value={data.event_date} onChange={(value) => setData('event_date', value)} error={errors.event_date} />
-                        <Field label="Jam Mulai" type="time" value={data.start_time} onChange={(value) => setData('start_time', value)} error={errors.start_time} />
-                        <Field label="Jam Selesai (opsional)" type="time" value={data.end_time} onChange={(value) => setData('end_time', value)} error={errors.end_time} />
+
+                    <div className="space-y-2">
+                        <p className="text-sm font-medium text-slate-700">Durasi Event</p>
+                        {[
+                            { value: 'single', label: 'Single Day', description: 'Event digelar satu hari' },
+                            { value: 'multi_day', label: 'Multi-Day', description: 'Event digelar beberapa hari (mis. 3 hari konser)' },
+                        ].map((option) => (
+                            <label
+                                key={option.value}
+                                className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-all ${
+                                    data.duration_type === option.value
+                                        ? 'border-indigo-600 bg-indigo-50/60 ring-1 ring-indigo-600'
+                                        : 'border-slate-300 bg-white hover:border-slate-400'
+                                }`}
+                            >
+                                <input
+                                    type="radio"
+                                    name="duration_type"
+                                    value={option.value}
+                                    checked={data.duration_type === option.value}
+                                    onChange={() => handleDurationType(option.value)}
+                                    className="mt-1 h-4 w-4 accent-indigo-600"
+                                />
+                                <span>
+                                    <span className="block text-sm font-medium text-slate-800">{option.label}</span>
+                                    <span className="block text-xs text-slate-500">{option.description}</span>
+                                </span>
+                            </label>
+                        ))}
+                        {errors.duration_type && <p className="text-sm text-rose-600">{errors.duration_type}</p>}
                     </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        <Field label="Jam Buka Pintu (opsional)" type="datetime-local" value={data.open_gate} onChange={(value) => setData('open_gate', value)} error={errors.open_gate} />
-                        <Field label="Jam Tutup Pintu (opsional)" type="datetime-local" value={data.close_gate} onChange={(value) => setData('close_gate', value)} error={errors.close_gate} />
-                    </div>
-                    <p className="text-xs text-slate-400">
-                        Scan tiket hanya diterima di luar rentang ini. Waktu dalam WIB.
-                    </p>
+
+                    {data.duration_type === 'single' ? (
+                        <>
+                            <div className="grid gap-4 sm:grid-cols-3">
+                                <Field label="Tanggal Event" type="date" value={data.event_date} onChange={(value) => setData('event_date', value)} error={errors.event_date} />
+                                <Field label="Jam Mulai" type="time" value={data.start_time} onChange={(value) => setData('start_time', value)} error={errors.start_time} />
+                                <Field label="Jam Selesai (opsional)" type="time" value={data.end_time} onChange={(value) => setData('end_time', value)} error={errors.end_time} />
+                            </div>
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <Field label="Jam Buka Pintu (opsional)" type="datetime-local" value={data.open_gate} onChange={(value) => setData('open_gate', value)} error={errors.open_gate} />
+                                <Field label="Jam Tutup Pintu (opsional)" type="datetime-local" value={data.close_gate} onChange={(value) => setData('close_gate', value)} error={errors.close_gate} />
+                            </div>
+                            <p className="text-xs text-slate-400">
+                                Scan tiket hanya diterima di luar rentang ini. Waktu dalam WIB.
+                            </p>
+                        </>
+                    ) : (
+                        <>
+                            <Field
+                                label="Jumlah Hari"
+                                type="number"
+                                min="1"
+                                max={MAX_DAYS}
+                                value={data.total_days}
+                                onChange={(value) => handleTotalDays(value)}
+                                error={errors.total_days}
+                                placeholder="3"
+                                hint={`Maksimal ${MAX_DAYS} hari. Atur jadwal tiap hari di bawah.`}
+                            />
+                            <div className="space-y-3">
+                                {data.event_days.map((day, index) => (
+                                    <div key={day.day_number} className="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
+                                        <p className="mb-3 text-sm font-medium text-slate-700">Day {day.day_number}</p>
+                                        <div className="grid gap-3 sm:grid-cols-4">
+                                            <div className="sm:col-span-1">
+                                                <DayField
+                                                    label="Tanggal"
+                                                    type="date"
+                                                    value={day.date}
+                                                    onChange={(value) => updateDay(index, 'date', value)}
+                                                    error={dayError(index, 'date')}
+                                                />
+                                            </div>
+                                            <div className="sm:col-span-1">
+                                                <DayField
+                                                    label="Jam Buka Pintu (opsional)"
+                                                    type="datetime-local"
+                                                    value={day.open_gate}
+                                                    onChange={(value) => updateDay(index, 'open_gate', value)}
+                                                    error={dayError(index, 'open_gate')}
+                                                />
+                                            </div>
+                                            <div className="sm:col-span-1">
+                                                <DayField
+                                                    label="Jam Tutup Pintu (opsional)"
+                                                    type="datetime-local"
+                                                    value={day.close_gate}
+                                                    onChange={(value) => updateDay(index, 'close_gate', value)}
+                                                    error={dayError(index, 'close_gate')}
+                                                />
+                                            </div>
+                                        </div>
+                                        {errors.event_days && <p className="mt-2 text-sm text-rose-600">{errors.event_days}</p>}
+                                    </div>
+                                ))}
+                            </div>
+                            <p className="text-xs text-slate-400">
+                                Tanggal & waktu dalam WIB. Scan tiket hanya diterima di luar rentang buka–tutup pintu tiap hari.
+                            </p>
+                        </>
+                    )}
                 </Section>
 
                 <Section title="Performer / Artis" note="Satu nama per baris.">
@@ -205,18 +328,36 @@ function Section({ title, note, children }) {
     );
 }
 
-function Field({ label, type = 'text', value, onChange, error, placeholder }) {
+function Field({ label, type = 'text', value, onChange, error, placeholder, min, max, hint }) {
     return (
         <label className="block">
             <span className="block text-sm font-medium text-slate-700">{label}</span>
             <input
                 type={type}
+                min={min}
+                max={max}
                 value={value}
                 onChange={(eventChange) => onChange(eventChange.target.value)}
                 placeholder={placeholder}
                 className="w-full bg-white border border-slate-300 text-slate-900 placeholder-slate-400 rounded-lg px-4 py-2.5 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 transition-all"
             />
+            {hint && <span className="mt-1 block text-xs text-slate-400">{hint}</span>}
             {error && <p className="text-sm text-rose-600">{error}</p>}
+        </label>
+    );
+}
+
+function DayField({ label, type = 'text', value, onChange, error }) {
+    return (
+        <label className="block">
+            <span className="block text-[11px] font-medium text-slate-500">{label}</span>
+            <input
+                type={type}
+                value={value}
+                onChange={(eventChange) => onChange(eventChange.target.value)}
+                className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 transition-all text-sm"
+            />
+            {error && <p className="text-xs text-rose-600">{error}</p>}
         </label>
     );
 }

@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Enums\UserRole;
 use App\Models\Event;
+use App\Models\EventDay;
 use App\Models\TicketCategory;
 use App\Repositories\EventRepository;
 use App\Repositories\TicketCategoryRepository;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -36,7 +38,16 @@ class TicketCategoryController extends Controller
                 'status' => $event->status,
                 'city' => $event->city,
                 'event_date' => $event->event_date?->format('Y-m-d'),
+                'duration_type' => $event->duration_type,
             ],
+            'event_days' => $event->eventDays()->get(['id', 'day_number', 'date'])
+                ->map(fn (EventDay $day) => [
+                    'id' => $day->id,
+                    'day_number' => $day->day_number,
+                    'date' => $day->date->format('Y-m-d'),
+                ])
+                ->values()
+                ->all(),
             'categories' => $categories,
             'can_manage' => $this->canManage($request, $event),
         ]);
@@ -46,7 +57,7 @@ class TicketCategoryController extends Controller
     {
         $event = $this->findEvent($request, $event);
 
-        $data = $this->validatedCreation($request);
+        $data = $this->validatedCreation($request, $event);
 
         $this->categories->createForEvent($event, [
             ...$data,
@@ -65,7 +76,7 @@ class TicketCategoryController extends Controller
         /** @var TicketCategory $category */
         $category = $this->categories->findInEvent($event, $category);
 
-        $data = $this->validatedCreation($request);
+        $data = $this->validatedCreation($request, $event);
 
         $sold = $category->total_quantity - $category->available_quantity;
         $available = $data['total_quantity'] - $sold;
@@ -99,7 +110,7 @@ class TicketCategoryController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function validatedCreation(Request $request): array
+    private function validatedCreation(Request $request, Event $event): array
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
@@ -107,7 +118,18 @@ class TicketCategoryController extends Controller
             'price' => ['required', 'numeric', 'min:0'],
             'total_quantity' => ['required', 'integer', 'min:1'],
             'max_per_order' => ['required', 'integer', 'min:1', 'max:5'],
+            'access_type' => ['sometimes', 'required', Rule::in(['ALL_DAYS', 'SINGLE_DAY'])],
+            'event_day_id' => ['nullable', 'integer'],
         ]);
+
+        $accessType = $validated['access_type'] ?? 'ALL_DAYS';
+        $eventDayId = $validated['event_day_id'] ?? null;
+
+        if ($accessType === 'SINGLE_DAY') {
+            abort_if($eventDayId === null, 422, 'Pilih hari untuk kategori tiket per hari.');
+            abort_if(! EventDay::whereKey($eventDayId)->where('event_id', $event->id)->exists(), 422,
+                'Hari yang dipilih bukan bagian dari event ini.');
+        }
 
         return [
             'name' => $validated['name'],
@@ -115,6 +137,8 @@ class TicketCategoryController extends Controller
             'price' => $validated['price'],
             'total_quantity' => $validated['total_quantity'],
             'max_per_order' => $validated['max_per_order'],
+            'access_type' => $accessType,
+            'event_day_id' => $accessType === 'SINGLE_DAY' ? $eventDayId : null,
         ];
     }
 
@@ -146,6 +170,11 @@ class TicketCategoryController extends Controller
             'id' => $category->id,
             'name' => $category->name,
             'description' => $category->description,
+            'access_type' => $category->access_type,
+            'event_day_id' => $category->event_day_id,
+            'event_day_label' => $category->eventDay !== null
+                ? sprintf('Day %d · %s', $category->eventDay->day_number, $category->eventDay->date->format('d M Y'))
+                : null,
             'price' => (float) $category->price,
             'total_quantity' => $category->total_quantity,
             'available_quantity' => $category->available_quantity,

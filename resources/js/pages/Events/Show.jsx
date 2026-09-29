@@ -108,7 +108,7 @@ export default function Show({ event }) {
                         </div>
                     )}
 
-                    <div className="mt-8" id="order">
+                    <div className="mt-8 scroll-mt-40" id="order">
                         <h2 className="text-lg font-semibold text-slate-900">Kategori Tiket</h2>
                         {isCustomer ? (
                             <TicketOrder event={event} />
@@ -118,6 +118,30 @@ export default function Show({ event }) {
                     </div>
                 </div>
             </section>
+
+            {hasTickets && (
+                <div
+                    className={`fixed inset-x-0 z-30 border-t border-slate-200/80 bg-white/95 px-4 py-3 backdrop-blur-lg lg:hidden ${
+                        user ? 'bottom-[4.5rem]' : 'bottom-0'
+                    }`}
+                    style={{ paddingBottom: user ? 'calc(env(safe-area-inset-bottom) + 0.75rem)' : 'env(safe-area-inset-bottom)' }}
+                >
+                    <div className="mx-auto flex max-w-md items-center justify-between gap-4">
+                        <div>
+                            <p className="text-sm text-slate-500">Mulai dari</p>
+                            <p className="text-lg font-semibold tabular-nums text-slate-900">
+                                {event.starting_price ? rupiah(event.starting_price) : 'Harga menyusul'}
+                            </p>
+                        </div>
+                        <a
+                            href="#order"
+                            className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-lg shadow-sm transition-all"
+                        >
+                            Beli Tiket
+                        </a>
+                    </div>
+                </div>
+            )}
         </PublicLayout>
     );
 }
@@ -252,7 +276,7 @@ function TicketOrder({ event }) {
                     </div>
                 </div>
 
-                <div className="bg-white border border-slate-200/80 rounded-xl shadow-sm p-5 h-fit">
+                <div className="bg-cyan-400 border border-cyan-400 rounded-xl shadow-sm p-5 h-fit">
                     <h3 className="font-semibold text-slate-900">Ringkasan Pesanan</h3>
                     <ul className="mt-3 space-y-2 text-sm">
                         {data.items.map((item) => {
@@ -260,7 +284,7 @@ function TicketOrder({ event }) {
                             if (!category || Number(item.quantity) === 0) return null;
 
                             return (
-                                <li key={item.category_id} className="flex items-center justify-between gap-2 text-slate-600">
+                                <li key={item.category_id} className="flex items-center justify-between gap-2 text-slate-700">
                                     <span>
                                         {category.name} × {item.quantity}
                                     </span>
@@ -272,7 +296,7 @@ function TicketOrder({ event }) {
                         })}
                     </ul>
 
-                    <div className="mt-4 flex items-center justify-between border-t border-slate-200/80 pt-3">
+                    <div className="mt-4 flex items-center justify-between border-t border-slate-300/80 pt-3">
                         <span className="text-sm font-medium text-slate-700">Total</span>
                         <span className="text-xl font-semibold text-slate-900">{rupiah(grandTotal)}</span>
                     </div>
@@ -281,7 +305,7 @@ function TicketOrder({ event }) {
                         <p className="mt-2 text-sm text-rose-600">Maksimal 5 tiket per transaksi.</p>
                     )}
                     {totalQuantity === 0 && (
-                        <p className="mt-2 text-sm text-slate-400">Pilih minimal satu tiket untuk memesan.</p>
+                        <p className="mt-2 text-sm text-slate-700">Pilih minimal satu tiket untuk memesan.</p>
                     )}
                     {errors.items && <p className="mt-2 text-sm text-rose-600">{errors.items}</p>}
 
@@ -289,11 +313,11 @@ function TicketOrder({ event }) {
                         type="button"
                         onClick={openDrawer}
                         disabled={totalQuantity === 0 || overLimit}
-                        className="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-5 rounded-lg transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="mt-4 w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-2.5 px-5 rounded-lg transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         Lanjut ke Pembayaran
                     </button>
-                    <p className="mt-2 text-xs text-slate-400">
+                    <p className="mt-2 text-xs text-slate-700">
                         Pesanan berlaku 15 menit. Batas 5 tiket per transaksi.
                     </p>
                 </div>

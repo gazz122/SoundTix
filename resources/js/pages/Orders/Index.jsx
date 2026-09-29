@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+﻿import { Link } from '@inertiajs/react';
 import AppLayout from '@/components/AppLayout';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
 import { formatDate, rupiah } from '@/lib/format';
@@ -30,7 +30,7 @@ export default function Index({ orders }) {
                             <Link
                                 key={order.order_code}
                                 href={`/orders/${order.order_code}`}
-                                className="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm hover:shadow-md hover:border-slate-300 transition-all p-5 block"
+                                className="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm hover:shadow-sm hover:border-slate-300 transition-all p-5 block"
                             >
                                 <div className="flex items-start justify-between gap-3">
                                     <div>
@@ -49,7 +49,7 @@ export default function Index({ orders }) {
 
                                 <div className="mt-4 flex items-end justify-between gap-3 border-t border-slate-200/80 pt-3">
                                     <p className="text-sm text-slate-500">
-                                        {order.items.length} kategori ·{' '}
+                                        {order.items.length} kategori Â·{' '}
                                         {order.items.reduce((sum, item) => sum + item.quantity, 0)} tiket
                                     </p>
                                     <p className="font-semibold text-slate-900">{rupiah(order.grand_total)}</p>

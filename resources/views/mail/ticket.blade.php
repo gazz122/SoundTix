@@ -12,7 +12,7 @@
                 <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;">
                     <tr>
                         <td style="padding:0 16px 20px;">
-                            <div style="text-align:center;font-size:20px;font-weight:bold;color:#1e1b4b;">
+                            <div style="text-align:center;font-size:20px;font-weight:bold;color:#23212e;">
                                 SoundTix
                             </div>
                             <div style="text-align:center;font-size:13px;color:#64748b;margin-top:2px;">
@@ -52,11 +52,11 @@
                                 <img
                                     src="{{ $message->embedData($qrPng, 'eticket-'.Str::slug($ticket['ticket_code']).'.png') }}"
                                     alt="QR Code E-Tiket"
-                                    width="220"
-                                    height="220"
-                                    style="display:inline-block;width:220px;height:220px;"
+                                    width="240"
+                                    height="240"
+                                    style="display:inline-block;width:240px;height:240px;"
                                 >
-                                <div style="margin-top:10px;font-family:Consolas,Menlo,monospace;font-size:14px;font-weight:bold;letter-spacing:1px;color:#4f46e5;">
+                                <div style="margin-top:10px;font-family:Consolas,Menlo,monospace;font-size:14px;font-weight:bold;letter-spacing:1px;color:#6b46d1;">
                                     {{ $ticket['ticket_code'] }}
                                 </div>
                                 <div style="margin-top:4px;font-size:12px;color:#94a3b8;">

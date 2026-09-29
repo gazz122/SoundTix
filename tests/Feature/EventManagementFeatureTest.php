@@ -363,4 +363,123 @@ class EventManagementFeatureTest extends TestCase
                     ->where('events.data.0.title', 'Event Baru Tayang'),
             );
     }
+
+    public function test_organizer_can_create_single_day_event_with_auto_day(): void
+    {
+        $organizer = $this->organizer();
+        $date = now()->addDays(14)->toDateString();
+
+        $this->actingAs($organizer)
+            ->post('/organizer/events', [
+                ...$this->validPayload(),
+                'duration_type' => 'single',
+                'total_days' => 1,
+                'open_gate' => now()->addDays(10)->setTime(16, 0)->format('Y-m-d\TH:i'),
+                'close_gate' => now()->addDays(10)->setTime(22, 0)->format('Y-m-d\TH:i'),
+            ])
+            ->assertRedirect();
+
+        $event = Event::where('organizer_id', $organizer->id)->firstOrFail();
+        $this->assertSame('single', $event->duration_type);
+        $this->assertSame(1, $event->total_days);
+
+        $day = $event->eventDays()->firstOrFail();
+        $this->assertSame($date, $day->date->toDateString());
+        $this->assertSame('09:00:00', $day->open_gate->format('H:i:s'));
+        $this->assertSame('15:00:00', $day->close_gate->format('H:i:s'));
+    }
+
+    public function test_organizer_can_create_multi_day_event_with_daily_schedule(): void
+    {
+        $organizer = $this->organizer();
+        $day1 = now()->addDays(5)->toDateString();
+        $day2 = now()->addDays(6)->toDateString();
+        $day3 = now()->addDays(7)->toDateString();
+
+        $this->actingAs($organizer)
+            ->post('/organizer/events', [
+                ...$this->validPayload(),
+                'duration_type' => 'multi_day',
+                'total_days' => 3,
+                'event_days' => [
+                    ['day_number' => 1, 'date' => $day1, 'open_gate' => $day1.'T16:00', 'close_gate' => $day1.'T22:00'],
+                    ['day_number' => 2, 'date' => $day2, 'open_gate' => '', 'close_gate' => ''],
+                    ['day_number' => 3, 'date' => $day3, 'open_gate' => null, 'close_gate' => null],
+                ],
+            ])
+            ->assertRedirect();
+
+        $event = Event::where('organizer_id', $organizer->id)->firstOrFail();
+        $this->assertSame('multi_day', $event->duration_type);
+        $this->assertSame(3, $event->total_days);
+        $this->assertSame($day1, $event->event_date->toDateString());
+        $this->assertNull($event->open_gate);
+        $this->assertNull($event->close_gate);
+
+        $days = $event->eventDays()->orderBy('day_number')->get();
+        $this->assertCount(3, $days);
+        $this->assertSame([1, 2, 3], $days->pluck('day_number')->all());
+        $this->assertSame($day2, $days[1]->date->toDateString());
+        $this->assertSame('09:00:00', $days[0]->open_gate->format('H:i:s'));
+        $this->assertSame('15:00:00', $days[0]->close_gate->format('H:i:s'));
+        $this->assertNull($days[1]->open_gate);
+        $this->assertNull($days[2]->close_gate);
+    }
+
+    public function test_multi_day_event_rejects_mismatched_day_count_and_duplicate_numbers(): void
+    {
+        $this->actingAs($this->organizer())
+            ->post('/organizer/events', [
+                ...$this->validPayload(),
+                'duration_type' => 'multi_day',
+                'total_days' => 3,
+                'event_days' => [
+                    ['day_number' => 1, 'date' => now()->addDays(5)->toDateString()],
+                    ['day_number' => 1, 'date' => now()->addDays(6)->toDateString()],
+                ],
+            ])
+            ->assertSessionHasErrors(['event_days', 'event_days.*.day_number']);
+
+        $this->assertCount(0, Event::all());
+    }
+
+    public function test_multi_day_event_rejects_past_day_dates(): void
+    {
+        $this->actingAs($this->organizer())
+            ->post('/organizer/events', [
+                ...$this->validPayload(),
+                'duration_type' => 'multi_day',
+                'total_days' => 1,
+                'event_days' => [
+                    ['day_number' => 1, 'date' => now()->subDay()->toDateString()],
+                ],
+            ])
+            ->assertSessionHasErrors('event_days.0.date');
+
+        $this->assertCount(0, Event::all());
+    }
+
+    public function test_organizer_can_shrink_multi_day_event_removing_unused_days(): void
+    {
+        $organizer = $this->organizer();
+        $event = Event::factory()->draft()->create(['organizer_id' => $organizer->id]);
+        $event->eventDays()->create(['day_number' => 1, 'date' => now()->addDays(5)->toDateString()]);
+        $event->eventDays()->create(['day_number' => 2, 'date' => now()->addDays(6)->toDateString()]);
+
+        $this->actingAs($organizer)
+            ->put("/organizer/events/{$event->id}", [
+                ...$this->validPayload(),
+                'duration_type' => 'multi_day',
+                'total_days' => 1,
+                'event_days' => [
+                    ['day_number' => 1, 'date' => now()->addDays(5)->toDateString(), 'open_gate' => '', 'close_gate' => ''],
+                ],
+            ])
+            ->assertRedirect();
+
+        $fresh = $event->fresh();
+        $this->assertSame('multi_day', $fresh->duration_type);
+        $this->assertSame(1, $fresh->total_days);
+        $this->assertSame([1], $fresh->eventDays()->pluck('day_number')->all());
+    }
 }

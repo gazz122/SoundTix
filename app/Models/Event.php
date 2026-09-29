@@ -20,6 +20,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'city',
     'address',
     'event_date',
+    'duration_type',
+    'total_days',
     'start_time',
     'end_time',
     'open_gate',
@@ -41,6 +43,7 @@ class Event extends Model
     {
         return [
             'event_date' => 'date',
+            'total_days' => 'integer',
             'open_gate' => 'datetime',
             'close_gate' => 'datetime',
         ];
@@ -64,6 +67,11 @@ class Event extends Model
     public function rundowns(): HasMany
     {
         return $this->hasMany(EventRundown::class)->orderBy('start_time');
+    }
+
+    public function eventDays(): HasMany
+    {
+        return $this->hasMany(EventDay::class)->orderBy('day_number');
     }
 
     public function payouts(): HasMany

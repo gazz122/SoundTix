@@ -1,12 +1,13 @@
-import { Head } from '@inertiajs/react';
+﻿import { Head } from '@inertiajs/react';
 import PublicLayout from '@/components/PublicLayout';
+
 
 const channels = [
     {
         name: 'Email',
-        value: 'halo@soundtix.id',
-        href: 'mailto:halo@soundtix.id',
-        description: 'Pertanyaan, kerja sama, atau dukungan teknis — kirim lewat email dan tim kami balas dalam 1×24 jam.',
+        value: 'bagasdimas225@gmail.com',
+        href: 'gmail:bagasdimas225@gmail.com',
+        description: 'Pertanyaan, kerja sama, atau dukungan teknis â€” kirim lewat email dan tim kami balas dalam 1Ã—24 jam.',
         icon: 'mail',
     },
     {
@@ -18,15 +19,15 @@ const channels = [
     },
     {
         name: 'Instagram',
-        value: '@soundtix.id',
+        value: '@bagwan.jagung',
         href: 'https://instagram.com/bagwan.jagung',
         description: 'Ikuti kabar event terbaru, promosi, dan pengumuman dari SoundTix.',
         icon: 'instagram',
     },
     {
         name: 'X (Twitter)',
-        value: '@soundtix_id',
-        href: 'https://x.com/soundtix_id',
+        value: '@bgasset_',
+        href: 'https://x.com/bgasset_',
         description: 'Cek berita terbaru dan diskusi publik seputar layanan SoundTix.',
         icon: 'twitter',
     },
@@ -56,7 +57,7 @@ export default function Contact() {
                             href={channel.href}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="group rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:border-indigo-600 hover:shadow-md"
+                            className="group rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:border-indigo-600 hover:shadow-sm"
                         >
                             <div className="flex items-start gap-4">
                                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
@@ -65,7 +66,7 @@ export default function Contact() {
                                 <div>
                                     <div className="flex items-center gap-2">
                                         <h2 className="font-semibold text-slate-900">{channel.name}</h2>
-                                        <span className="text-xs text-slate-400 transition-transform group-hover:translate-x-0.5">→</span>
+                                        <span className="text-xs text-slate-400 transition-transform group-hover:translate-x-0.5">â†’</span>
                                     </div>
                                     <p className="mt-0.5 text-sm font-medium text-indigo-600">{channel.value}</p>
                                     <p className="mt-2 text-sm leading-6 text-slate-500">{channel.description}</p>
@@ -78,7 +79,7 @@ export default function Contact() {
                 <section className="mt-8 rounded-2xl bg-indigo-600 px-6 py-8 text-white sm:px-10">
                     <div className="max-w-2xl">
                         <p className="text-sm font-medium text-indigo-200">Jam operasional</p>
-                        <h2 className="mt-2 text-xl font-semibold">Senin–Jumat, 09.00–18.00 WIB</h2>
+                        <h2 className="mt-2 text-xl font-semibold">Seninâ€“Jumat, 09.00â€“18.00 WIB</h2>
                         <p className="mt-3 text-sm leading-6 text-indigo-100">
                             Di luar jam tersebut, email tetap kami terima dan akan diproses pada hari kerja berikutnya.
                             Untuk hal mendesak saat hari acara berlangsung, prioritas utama tetap pada petugas venue.

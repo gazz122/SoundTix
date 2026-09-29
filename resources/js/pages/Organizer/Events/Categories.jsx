@@ -3,7 +3,7 @@ import { useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { rupiah } from '@/lib/format';
 
-export default function Categories({ event, categories }) {
+export default function Categories({ event, event_days, categories }) {
     const { flash } = usePage().props;
     const [editing, setEditing] = useState(null);
     const showingForm = editing !== null;
@@ -61,11 +61,12 @@ export default function Categories({ event, categories }) {
                         <CategoryForm
                             key={editing.id}
                             event={event}
+                            event_days={event_days}
                             category={editing}
                             onCancel={() => setEditing(null)}
                         />
                     ) : (
-                        <CategoryForm event={event} />
+                        <CategoryForm event={event} event_days={event_days} />
                     )}
                 </div>
             </div>
@@ -78,7 +79,18 @@ function CategoryCard({ category, onEdit, onDelete }) {
         <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm p-5">
             <div className="flex items-start justify-between gap-3">
                 <div>
-                    <h3 className="font-semibold text-slate-900">{category.name}</h3>
+                    <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-slate-900">{category.name}</h3>
+                        {category.access_type === 'SINGLE_DAY' ? (
+                            <span className="rounded-full bg-cyan-50 px-2 py-0.5 text-[11px] font-medium text-cyan-700 border border-cyan-100">
+                                {category.event_day_label ?? '1 Hari'}
+                            </span>
+                        ) : (
+                            <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 border border-indigo-100">
+                                Semua Hari
+                            </span>
+                        )}
+                    </div>
                     {category.description && <p className="mt-0.5 text-sm text-slate-500">{category.description}</p>}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -139,7 +151,7 @@ function Metric({ label, value }) {
     );
 }
 
-function CategoryForm({ event, category, onCancel }) {
+function CategoryForm({ event, event_days = [], category, onCancel }) {
     const editing = Boolean(category);
     const { data, setData, post, put, processing, errors, reset } = useForm({
         name: category?.name ?? '',
@@ -147,6 +159,8 @@ function CategoryForm({ event, category, onCancel }) {
         price: category?.price ?? '',
         total_quantity: category?.total_quantity ?? '',
         max_per_order: category?.max_per_order ?? 5,
+        access_type: category?.access_type ?? 'ALL_DAYS',
+        event_day_id: category?.event_day_id ?? '',
     });
 
     function submit(formEvent) {
@@ -187,6 +201,52 @@ function CategoryForm({ event, category, onCancel }) {
                     />
                     {errors.description && <p className="text-sm text-rose-600">{errors.description}</p>}
                 </label>
+
+                <div className="space-y-2">
+                    <p className="text-sm font-medium text-slate-700">Tipe Akses</p>
+                    {[
+                        { value: 'ALL_DAYS', label: 'Semua Hari', description: 'Berlaku di seluruh hari event (mis. 3-Day Pass)' },
+                        { value: 'SINGLE_DAY', label: 'Satu Hari', description: 'Tiket hanya berlaku pada satu hari tertentu' },
+                    ].map((option) => (
+                        <label
+                            key={option.value}
+                            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-all ${
+                                data.access_type === option.value
+                                    ? 'border-indigo-600 bg-indigo-50/60 ring-1 ring-indigo-600'
+                                    : 'border-slate-300 bg-white hover:border-slate-400'
+                            }`}
+                        >
+                            <input
+                                type="radio"
+                                name="access_type"
+                                value={option.value}
+                                checked={data.access_type === option.value}
+                                onChange={() => setData('access_type', option.value)}
+                                className="mt-1 h-4 w-4 accent-indigo-600"
+                            />
+                            <span>
+                                <span className="block text-sm font-medium text-slate-800">{option.label}</span>
+                                <span className="block text-xs text-slate-500">{option.description}</span>
+                            </span>
+                        </label>
+                    ))}
+                    {errors.access_type && <p className="text-sm text-rose-600">{errors.access_type}</p>}
+                </div>
+
+                {data.access_type === 'SINGLE_DAY' && (
+                    <FieldSelect
+                        label="Hari Berlaku"
+                        value={data.event_day_id}
+                        onChange={(value) => setData('event_day_id', value)}
+                        error={errors.event_day_id}
+                        options={event_days.map((day) => ({
+                            value: day.id,
+                            label: `Day ${day.day_number} · ${day.date}`,
+                        }))}
+                        placeholder={event_days.length === 0 ? 'Belum ada jadwal hari' : 'Pilih hari'}
+                    />
+                )}
+
                 <div className="grid grid-cols-2 gap-3">
                     <Field label="Harga (Rp)" type="number" min="0" step="1000" value={data.price} onChange={(value) => setData('price', value)} error={errors.price} placeholder="150000" />
                     <Field label="Total Stok" type="number" min="1" value={data.total_quantity} onChange={(value) => setData('total_quantity', value)} error={errors.total_quantity} placeholder="100" hint="Stok dapat disesuaikan tanpa mengubah jumlah terjual" />
@@ -202,6 +262,27 @@ function CategoryForm({ event, category, onCancel }) {
                 </button>
             </form>
         </div>
+    );
+}
+
+function FieldSelect({ label, value, onChange, error, options, placeholder }) {
+    return (
+        <label className="block">
+            <span className="block text-sm font-medium text-slate-700">{label}</span>
+            <select
+                value={value}
+                onChange={(formChange) => onChange(formChange.target.value)}
+                className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-4 py-2.5 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 transition-all"
+            >
+                <option value="">{placeholder}</option>
+                {options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                        {option.label}
+                    </option>
+                ))}
+            </select>
+            {error && <p className="text-sm text-rose-600">{error}</p>}
+        </label>
     );
 }
 
