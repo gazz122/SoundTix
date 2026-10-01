@@ -59,6 +59,11 @@ class Event extends Model
         return $this->belongsToMany(Performer::class, 'event_performers');
     }
 
+    public function savedByUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'saved_events')->withTimestamps();
+    }
+
     public function ticketCategories(): HasMany
     {
         return $this->hasMany(TicketCategory::class);

@@ -7,38 +7,42 @@ use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\GatekeeperScanController;
 use App\Http\Controllers\Api\TicketValidationController;
 use App\Http\Controllers\Organizer\OrganizerPayoutController;
+use App\Http\Controllers\PaymentController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth');
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth');
+Route::post('/midtrans/webhook', [PaymentController::class, 'webhook']);
+Route::prefix('v1')->group(function (): void {
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth');
 
-Route::get('/events', [EventController::class, 'index']);
-Route::get('/events/{event:slug}', [EventController::class, 'show']);
+    Route::get('/events', [EventController::class, 'index']);
+    Route::get('/events/{event:slug}', [EventController::class, 'show']);
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/user', [AuthController::class, 'me']);
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::post('/verify/send', [AuthController::class, 'verifySend']);
-    Route::post('/verify/confirm', [AuthController::class, 'verifyConfirm']);
-});
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/user', [AuthController::class, 'me']);
+        Route::post('/logout', [AuthController::class, 'logout']);
+        Route::post('/verify/send', [AuthController::class, 'verifySend']);
+        Route::post('/verify/confirm', [AuthController::class, 'verifyConfirm']);
+    });
 
-Route::middleware(['auth:sanctum', 'role:organizer'])->prefix('/organizer')->group(function () {
-    Route::post('/events/{eventId}/payout', [OrganizerPayoutController::class, 'store']);
-});
+    Route::middleware(['auth:sanctum', 'role:organizer'])->prefix('/organizer')->group(function () {
+        Route::post('/events/{eventId}/payout', [OrganizerPayoutController::class, 'store']);
+    });
 
-Route::middleware(['auth:sanctum', 'role:organizer,gatekeeper'])->prefix('/tickets')->group(function () {
-    Route::post('/validate', [TicketValidationController::class, 'validate']);
-});
+    Route::middleware(['auth:sanctum', 'role:organizer,gatekeeper'])->prefix('/tickets')->group(function () {
+        Route::post('/validate', [TicketValidationController::class, 'validate']);
+    });
 
-Route::middleware(['auth:sanctum', 'role:organizer,gatekeeper'])->prefix('/gatekeeper')->group(function () {
-    Route::post('/scan', [GatekeeperScanController::class, 'scan']);
-});
+    Route::middleware(['auth:sanctum', 'role:organizer,gatekeeper'])->prefix('/gatekeeper')->group(function () {
+        Route::post('/scan', [GatekeeperScanController::class, 'scan']);
+    });
 
-Route::middleware(['auth:sanctum', 'role:admin'])->prefix('/admin')->group(function () {
-    Route::get('/users', [UserController::class, 'index']);
-    Route::post('/users', [UserController::class, 'store']);
-    Route::patch('/users/{user}', [UserController::class, 'update']);
-    Route::get('/payouts', [AdminPayoutController::class, 'index']);
-    Route::post('/payouts/{payoutId}/approve', [AdminPayoutController::class, 'approve']);
-    Route::post('/payouts/{payoutId}/complete', [AdminPayoutController::class, 'completePayout']);
+    Route::middleware(['auth:sanctum', 'role:admin'])->prefix('/admin')->group(function () {
+        Route::get('/users', [UserController::class, 'index']);
+        Route::post('/users', [UserController::class, 'store']);
+        Route::patch('/users/{user}', [UserController::class, 'update']);
+        Route::get('/payouts', [AdminPayoutController::class, 'index']);
+        Route::post('/payouts/{payoutId}/approve', [AdminPayoutController::class, 'approve']);
+        Route::post('/payouts/{payoutId}/complete', [AdminPayoutController::class, 'completePayout']);
+    });
 });

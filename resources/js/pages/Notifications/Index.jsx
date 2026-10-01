@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/components/AppLayout';
+import UiEmptyState from '@/components/ui/EmptyState';
 
 export default function Index({ notifications }) {
     const unreadCount = notifications.data.filter((notification) => !notification.read_at).length;
@@ -28,10 +29,11 @@ export default function Index({ notifications }) {
                 {notifications.data.length > 0 ? (
                     notifications.data.map((notification) => <NotificationItem key={notification.id} notification={notification} />)
                 ) : (
-                    <div className="px-6 py-14 text-center">
-                        <p className="font-medium text-slate-800">Belum ada notifikasi</p>
-                        <p className="mt-2 text-sm text-slate-500">Kami akan memberi tahu Anda tentang aktivitas penting di akun ini.</p>
-                    </div>
+                    <UiEmptyState
+                        title="Belum Ada Notifikasi"
+                        description="Kami akan memberi tahu Anda tentang aktivitas penting di akun ini."
+                        compact
+                    />
                 )}
             </section>
 

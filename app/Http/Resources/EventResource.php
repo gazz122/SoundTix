@@ -29,6 +29,7 @@ class EventResource extends JsonResource
             'start_time' => $this->time($this->start_time),
             'end_time' => $this->time($this->end_time),
             'starting_price' => $this->starting_price !== null ? (float) $this->starting_price : null,
+            'is_saved' => (bool) ($this->saved_by_users_exists ?? false),
             'performers' => $this->performersPayload(),
             'ticket_categories' => $this->ticketCategoriesPayload(),
         ];

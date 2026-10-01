@@ -5,7 +5,7 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
-/* SoundTix design system — see docs/design.md */
+/* SoundTix design system - see docs/design.md */
 @theme {
     --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
@@ -25,7 +25,7 @@
     --color-slate-100: #efedf6;
     --color-slate-200: #e4e1ee;
     --color-slate-300: #d8d5e6;
-    --color-slate-400: #a9a6bc;
+    --color-slate-400: #6f6b86;
     --color-slate-500: #6a6780;
     --color-slate-600: #545168;
     --color-slate-700: #3d3a4d;
@@ -33,7 +33,7 @@
     --color-slate-900: #23212e;
     --color-slate-950: #16151d;
 
-    /* Primary — Sound Violet */
+    /* Primary - Sound Violet */
     --color-indigo-50: #eee9fb;
     --color-indigo-100: #e6dff8;
     --color-indigo-200: #d0c6f3;
@@ -46,7 +46,7 @@
     --color-indigo-900: #372273;
     --color-indigo-950: #241449;
 
-    /* Accent — Sound Cyan */
+    /* Accent - Sound Cyan */
     --color-orange-50: #e8fbfd;
     --color-orange-100: #d3f5fa;
     --color-orange-200: #b0edf5;
@@ -57,7 +57,7 @@
     --color-orange-700: #1b7a88;
     --color-orange-800: #17666f;
 
-    /* Secondary brand — Sound Blue (info) */
+    /* Secondary brand - Sound Blue (info) */
     --color-blue-50: #e6effa;
     --color-blue-100: #d5e2f6;
     --color-blue-200: #b7ccea;
@@ -74,7 +74,7 @@
     --color-sky-600: #2f6fc8;
     --color-sky-700: #2a5fa8;
 
-    /* Sound Cyan — layar panel pembelian & badge kategori (docs/design.md 2.2) */
+    /* Sound Cyan - layar panel pembelian & badge kategori (docs/design.md 2.2) */
     --color-cyan-50: #e8fbfd;
     --color-cyan-100: #d6f5fa;
     --color-cyan-200: #b0edf5;
@@ -154,7 +154,7 @@
 .dark {
     color-scheme: dark;
 
-    /* Neutrals — ungu gelap redup, bukan hitam pekat */
+    /* Neutrals - ungu gelap redup, bukan hitam pekat */
     --color-slate-50: #1b1926;
     --color-slate-100: #eceaf4;
     --color-slate-200: #e4e2ee;
@@ -167,7 +167,7 @@
     --color-slate-900: #1f1d29;
     --color-slate-950: #16151d;
 
-    /* Primary — Sound Violet (dark) */
+    /* Primary - Sound Violet (dark) */
     --color-indigo-50: #2c2645;
     --color-indigo-100: #342d52;
     --color-indigo-200: #40396a;
@@ -177,11 +177,11 @@
     --color-indigo-600: #a58bf0;
     --color-indigo-700: #bfaef5;
 
-    /* Accent — Sound Cyan (dark) */
+    /* Accent - Sound Cyan (dark) */
     --color-orange-200: #20343c;
     --color-orange-500: #8eddeb;
 
-    /* Secondary brand — Sound Blue (dark) */
+    /* Secondary brand - Sound Blue (dark) */
     --color-blue-50: #1f2b40;
     --color-blue-100: #25334c;
     --color-blue-200: #2c3f60;

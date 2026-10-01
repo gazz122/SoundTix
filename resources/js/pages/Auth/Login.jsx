@@ -76,7 +76,7 @@ export default function Login() {
                 </div>
 
                 <p className="mt-6 text-center text-xs text-slate-400">
-                    SoundTix — Platform e-ticketing konser digital
+                    SoundTix - Platform e-ticketing konser digital
                 </p>
             </div>
         </div>

@@ -74,6 +74,27 @@ class GatekeeperValidationFeatureTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->component('Gatekeeper/Scanner'));
     }
 
+    public function test_scanner_page_reports_scanned_and_capacity_counts(): void
+    {
+        $ticket = $this->activeTicket();
+        $gatekeeper = $this->gatekeeper();
+
+        $this->actingAs($gatekeeper)
+            ->get('/dashboard/scan')
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Gatekeeper/Scanner')
+                ->where('scanStats.capacity', 1)
+                ->where('scanStats.scanned', 0));
+
+        $this->actingAs($gatekeeper)
+            ->post('/dashboard/scan/validate', ['payload' => $ticket->qr_payload])
+            ->assertSessionHas('scan_result.status', 'success');
+
+        $this->actingAs($gatekeeper)
+            ->get('/dashboard/scan')
+            ->assertInertia(fn (Assert $page) => $page->where('scanStats.scanned', 1));
+    }
+
     public function test_organizer_can_open_scanner_page(): void
     {
         $this->actingAs(User::factory()->organizer()->create())

@@ -94,7 +94,7 @@ export default function Form({ event }) {
 
             {isEdit && event.status === 'rejected' && (
                 <div className="mb-6 rounded-lg border border-rose-200 bg-rose-50/60 px-4 py-3 text-sm text-rose-700">
-                    Event ditolak: {event.rejection_reason} — perbaiki lalu ajukan ulang.
+                    Event ditolak: {event.rejection_reason} - perbaiki lalu ajukan ulang.
                 </div>
             )}
 
@@ -245,7 +245,7 @@ export default function Form({ event }) {
                                 ))}
                             </div>
                             <p className="text-xs text-slate-400">
-                                Tanggal & waktu dalam WIB. Scan tiket hanya diterima di luar rentang buka–tutup pintu tiap hari.
+                                Tanggal & waktu dalam WIB. Scan tiket hanya diterima di luar rentang buka-tutup pintu tiap hari.
                             </p>
                         </>
                     )}

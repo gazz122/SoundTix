@@ -1,4 +1,4 @@
-﻿import { router, useForm } from '@inertiajs/react';
+import { router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/ui/StatCard';
@@ -36,7 +36,7 @@ export default function Admin({ stats, pending_events: pendingEvents }) {
                                     <tr key={event.id} className="align-middle hover:bg-slate-50/70">
                                         <td className="px-4 py-4">
                                             <p className="font-medium text-slate-900">{event.title}</p>
-                                            <p className="mt-1 text-xs text-slate-500">{event.venue_name} Â· {event.city}</p>
+                                            <p className="mt-1 text-xs text-slate-500">{event.venue_name} · {event.city}</p>
                                         </td>
                                         <td className="px-4 py-4 text-slate-600">{event.organizer}</td>
                                         <td className="whitespace-nowrap px-4 py-4 text-slate-600">{event.event_date}</td>

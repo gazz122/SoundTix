@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import EventCard from '@/components/EventCard';
 import HeroCarousel from '@/components/HeroCarousel';
 import PublicLayout from '@/components/PublicLayout';
+import UiEmptyState from '@/components/ui/EmptyState';
 
 export default function Index({ events, featured, filters }) {
     const list = events.data ?? [];
@@ -17,7 +18,7 @@ export default function Index({ events, featured, filters }) {
                         <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900">Konser impian Anda, dalam sekali ketik.</h1>
                         <p className="mt-2 text-slate-500">
                             Temukan konser, festival, dan event musik terbaik di kota Anda. Pesan tiket digital dengan
-                            mudah dan aman — gunakan kolom pencarian di bagian atas.
+                            mudah dan aman - gunakan kolom pencarian di bagian atas.
                         </p>
                     </div>
                 </>
@@ -69,12 +70,11 @@ function Pagination({ links }) {
 
 function EmptyState({ search }) {
     return (
-        <div className="bg-white border border-slate-200/80 rounded-xl shadow-sm p-10 text-center">
-            <p className="text-sm text-slate-500">
-                {search
-                    ? `Tidak ada event yang cocok dengan "${search}". Coba kata kunci lain.`
-                    : 'Belum ada event tersedia saat ini.'}
-            </p>
+        <div className="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+            <UiEmptyState
+                title={search ? `Tidak ada event cocok dengan "${search}"` : 'Belum ada event tersedia'}
+                description={search ? 'Coba kata kunci lain untuk mencari konser favoritmu.' : 'Cek kembali - event baru sedang disiapkan oleh para organizer.'}
+            />
         </div>
     );
 }

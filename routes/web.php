@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminFaqController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\AdminEventController;
 use App\Http\Controllers\AdminPayoutPageController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\Auth\OtpVerificationController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EventController;
+use App\Http\Controllers\FaqController;
 use App\Http\Controllers\GatekeeperScannerController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
@@ -27,6 +29,7 @@ Route::get('/', [EventController::class, 'index'])->name('home');
 Route::get('/events/{event:slug}', [EventController::class, 'show'])->name('events.show');
 Route::get('/about', fn () => Inertia::render('About'))->name('about');
 Route::get('/contact', fn () => Inertia::render('Contact'))->name('contact');
+Route::get('/faq', [FaqController::class, 'index'])->name('faq');
 Route::get('/organizer-guide', fn () => Inertia::render('OrganizerGuide'))->name('organizer.guide');
 Route::get('/organizer-info', fn () => Inertia::render('OrganizerInfo'))->name('organizer.info');
 
@@ -46,6 +49,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+
+    Route::get('/jelajah', [EventController::class, 'explore'])->name('explore');
+    Route::get('/saved', [EventController::class, 'saved'])->name('saved');
+    Route::post('/events/{event:slug}/save', [EventController::class, 'save'])->name('events.save');
+    Route::delete('/events/{event:slug}/save', [EventController::class, 'unsave'])->name('events.unsave');
 
     Route::middleware(['role:organizer,gatekeeper', 'redirect.gatekeepers'])->prefix('organizer')->name('organizer.')->group(function () {
         Route::get('/events', [OrganizerEventController::class, 'index'])->name('events.index');
@@ -101,6 +109,17 @@ Route::middleware('auth')->group(function () {
         Route::post('/refunds/{refund}/approve', [AdminRefundPageController::class, 'approve'])->name('refunds.approve');
         Route::post('/refunds/events/{event}/approve-cancellation', [AdminRefundPageController::class, 'approveCancellation'])->name('refunds.events.approve-cancellation');
         Route::post('/refunds/events/{event}/reject-cancellation', [AdminRefundPageController::class, 'rejectCancellation'])->name('refunds.events.reject-cancellation');
+
+        Route::get('/faqs', [AdminFaqController::class, 'index'])->name('faqs.index');
+        Route::post('/faqs/categories', [AdminFaqController::class, 'storeCategory'])->name('faqs.categories.store');
+        Route::put('/faqs/categories/{category}', [AdminFaqController::class, 'updateCategory'])->name('faqs.categories.update');
+        Route::delete('/faqs/categories/{category}', [AdminFaqController::class, 'destroyCategory'])->name('faqs.categories.destroy');
+        Route::post('/faqs/categories/reorder', [AdminFaqController::class, 'reorderCategories'])->name('faqs.categories.reorder');
+        Route::post('/faqs', [AdminFaqController::class, 'store'])->name('faqs.store');
+        Route::put('/faqs/{faq}', [AdminFaqController::class, 'update'])->name('faqs.update');
+        Route::delete('/faqs/{faq}', [AdminFaqController::class, 'destroy'])->name('faqs.destroy');
+        Route::post('/faqs/{faq}/toggle', [AdminFaqController::class, 'toggle'])->name('faqs.toggle');
+        Route::post('/faqs/reorder', [AdminFaqController::class, 'reorder'])->name('faqs.reorder');
     });
 
     Route::middleware('role:organizer,gatekeeper')->prefix('dashboard')->name('dashboard.')->group(function () {

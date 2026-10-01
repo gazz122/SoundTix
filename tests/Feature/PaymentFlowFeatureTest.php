@@ -5,12 +5,18 @@ namespace Tests\Feature;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\PaymentType;
+use App\Mail\ETicketEmail;
 use App\Models\Event;
 use App\Models\Order;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\PaymentGateway\MidtransPaymentDriver;
+use App\Services\PaymentGateway\PaymentGatewayInterface;
 use App\Services\TicketVerifier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request as ClientRequest;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -55,6 +61,203 @@ class PaymentFlowFeatureTest extends TestCase
     private function pay(Order $order, string $method = 'bank_transfer', string $bank = 'bca')
     {
         return $this->post("/orders/{$order->order_code}/pay", ['method' => $method, 'bank' => $bank]);
+    }
+
+    private function midtransPayload(Order $order, string $transactionStatus, string $fraudStatus = 'accept'): array
+    {
+        $serverKey = 'test-server-key';
+        config(['services.midtrans.server_key' => $serverKey]);
+
+        $grossAmount = (string) $order->grand_total;
+        $payload = [
+            'order_id' => $order->order_code,
+            'status_code' => '200',
+            'gross_amount' => $grossAmount,
+            'transaction_status' => $transactionStatus,
+            'fraud_status' => $fraudStatus,
+        ];
+        $payload['signature_key'] = hash('sha512', $payload['order_id'].$payload['status_code'].$grossAmount.$serverKey);
+
+        return $payload;
+    }
+
+    public function test_midtrans_webhook_rejects_invalid_signature(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer);
+        $this->actingAs($customer)->pay($order);
+        $payload = $this->midtransPayload($order, 'settlement');
+        $payload['signature_key'] = 'invalid';
+
+        $this->postJson('/api/midtrans/webhook', $payload)->assertForbidden();
+
+        $this->assertSame(PaymentStatus::Pending->value, $order->payments()->first()->fresh()->payment_status);
+        $this->assertSame(OrderStatus::Pending->value, $order->fresh()->status);
+    }
+
+    public function test_midtrans_webhook_accepts_numeric_gross_amount(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer, quantity: 1);
+        $this->actingAs($customer)->pay($order);
+        $payload = $this->midtransPayload($order, 'settlement');
+        $payload['gross_amount'] = (int) $order->grand_total;
+        $payload['signature_key'] = hash(
+            'sha512',
+            $order->order_code.'200'.(string) $payload['gross_amount'].'test-server-key',
+        );
+
+        $this->postJson('/api/midtrans/webhook', $payload)->assertOk();
+
+        $this->assertSame(PaymentStatus::Settlement->value, $order->payments()->first()->fresh()->payment_status);
+        $this->assertSame(OrderStatus::Paid->value, $order->fresh()->status);
+    }
+
+    public function test_midtrans_snap_request_includes_notification_url_override(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer, quantity: 1);
+        $webhookUrl = 'https://soundtix.ngrok-free.app/api/midtrans/webhook';
+        config([
+            'services.midtrans.server_key' => 'sandbox-server-key',
+            'services.midtrans.is_production' => false,
+            'services.midtrans.webhook_url' => $webhookUrl,
+        ]);
+
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://app.sandbox.midtrans.com/snap/v1/transactions' => Http::response([
+                'token' => 'snap-token',
+                'redirect_url' => 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token',
+            ], 201),
+        ]);
+
+        $payment = app(MidtransPaymentDriver::class)->createPayment($order, PaymentType::BankTransfer, 'bca');
+        $returnUrl = route('orders.show', $order->order_code);
+
+        Http::assertSent(fn (ClientRequest $request): bool => $request->url() === 'https://app.sandbox.midtrans.com/snap/v1/transactions'
+            && $request->data()['override_notification_urls'] === [$webhookUrl]
+            && $request->data()['callbacks'] === [
+                'finish' => $returnUrl,
+                'unfinish' => $returnUrl,
+                'error' => $returnUrl,
+            ]
+            && $request->data()['transaction_details']['order_id'] === $payment->transaction_id);
+        $this->assertSame(PaymentStatus::Pending->value, $payment->payment_status);
+        $this->assertSame('snap-token', $payment->raw_response['token']);
+    }
+
+    public function test_inertia_payment_request_redirects_to_midtrans_snap(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer, quantity: 1);
+        $redirectUrl = 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token';
+        config([
+            'services.midtrans.server_key' => 'sandbox-server-key',
+            'services.midtrans.is_production' => false,
+            'services.midtrans.webhook_url' => 'https://soundtix.ngrok-free.app/api/midtrans/webhook',
+        ]);
+
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://app.sandbox.midtrans.com/snap/v1/transactions' => Http::response([
+                'token' => 'snap-token',
+                'redirect_url' => $redirectUrl,
+            ], 201),
+        ]);
+        $this->app->bind(PaymentGatewayInterface::class, MidtransPaymentDriver::class);
+
+        $this->actingAs($customer)
+            ->withHeaders([
+                'X-Inertia' => 'true',
+                'X-Requested-With' => 'XMLHttpRequest',
+                'Accept' => 'text/html, application/xhtml+xml',
+            ])
+            ->post("/orders/{$order->order_code}/pay", ['method' => 'bank_transfer', 'bank' => 'bca'])
+            ->assertStatus(409)
+            ->assertHeader('X-Inertia-Location', $redirectUrl);
+    }
+
+    public function test_midtrans_settlement_webhook_issues_tickets_and_sends_email(): void
+    {
+        Mail::fake();
+
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer, quantity: 2);
+        $this->actingAs($customer)->pay($order);
+
+        $this->postJson('/api/midtrans/webhook', $this->midtransPayload($order, 'settlement'))
+            ->assertOk()
+            ->assertExactJson(['message' => 'Success']);
+
+        $this->assertSame(PaymentStatus::Settlement->value, $order->payments()->first()->fresh()->payment_status);
+        $this->assertSame(OrderStatus::Paid->value, $order->fresh()->status);
+        $this->assertSame(2, Ticket::count());
+        Mail::assertSent(ETicketEmail::class, 2);
+    }
+
+    public function test_midtrans_accepted_capture_webhook_settles_payment(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer, quantity: 1);
+        $this->actingAs($customer)->pay($order);
+
+        $this->postJson('/api/midtrans/webhook', $this->midtransPayload($order, 'capture', 'accept'))->assertOk();
+
+        $this->assertSame(PaymentStatus::Settlement->value, $order->payments()->first()->fresh()->payment_status);
+        $this->assertSame(OrderStatus::Paid->value, $order->fresh()->status);
+        $this->assertSame(1, Ticket::count());
+    }
+
+    public function test_midtrans_pending_webhook_leaves_payment_pending(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer);
+        $this->actingAs($customer)->pay($order);
+
+        $this->postJson('/api/midtrans/webhook', $this->midtransPayload($order, 'pending'))->assertOk();
+
+        $this->assertSame(PaymentStatus::Pending->value, $order->payments()->first()->fresh()->payment_status);
+        $this->assertSame(OrderStatus::Pending->value, $order->fresh()->status);
+    }
+
+    public function test_midtrans_denial_webhook_marks_payment_as_failed(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer);
+        $this->actingAs($customer)->pay($order);
+
+        $this->postJson('/api/midtrans/webhook', $this->midtransPayload($order, 'deny'))->assertOk();
+
+        $this->assertSame(PaymentStatus::Failure->value, $order->payments()->first()->fresh()->payment_status);
+        $this->assertSame(OrderStatus::Pending->value, $order->fresh()->status);
+    }
+
+    public function test_midtrans_expiration_webhook_expires_order_and_releases_stock(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer, quantity: 4);
+        $category = $order->orderItems->first()->ticketCategory;
+        $this->actingAs($customer)->pay($order);
+
+        $this->postJson('/api/midtrans/webhook', $this->midtransPayload($order, 'expire'))->assertOk();
+
+        $this->assertSame(PaymentStatus::Expire->value, $order->payments()->first()->fresh()->payment_status);
+        $this->assertSame(OrderStatus::Expired->value, $order->fresh()->status);
+        $this->assertSame(100, $category->fresh()->available_quantity);
+    }
+
+    public function test_midtrans_capture_challenge_does_not_issue_tickets(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer);
+        $this->actingAs($customer)->pay($order);
+
+        $this->postJson('/api/midtrans/webhook', $this->midtransPayload($order, 'capture', 'challenge'))->assertOk();
+
+        $this->assertSame(PaymentStatus::Pending->value, $order->payments()->first()->fresh()->payment_status);
+        $this->assertSame(OrderStatus::Pending->value, $order->fresh()->status);
+        $this->assertSame(0, Ticket::count());
     }
 
     public function test_customer_can_create_pending_payment(): void

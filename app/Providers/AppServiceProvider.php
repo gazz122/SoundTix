@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\PaymentGateway\MidtransPaymentDriver;
 use App\Services\PaymentGateway\MockPaymentDriver;
 use App\Services\PaymentGateway\PaymentGatewayInterface;
 use Illuminate\Support\ServiceProvider;
@@ -15,7 +16,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->bind(PaymentGatewayInterface::class, MockPaymentDriver::class);
+        $this->app->bind(PaymentGatewayInterface::class, function ($app) {
+            if (! $app->environment('testing') && filled(config('services.midtrans.server_key'))) {
+                return $app->make(MidtransPaymentDriver::class);
+            }
+
+            return $app->make(MockPaymentDriver::class);
+        });
     }
 
     /**

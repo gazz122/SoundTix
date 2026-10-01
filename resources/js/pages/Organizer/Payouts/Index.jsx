@@ -85,7 +85,7 @@ function WithdrawCard({ event }) {
                         </p>
                     </div>
                     <div className="text-right">
-                        <p className="text-2xl font-semibold text-emerald-700">{rupiah(event.net_amount)}</p>
+                        <p className="text-2xl font-semibold text-emerald-700 tabular-nums">{rupiah(event.net_amount)}</p>
                         <p className="text-xs text-slate-500">
                             dari {rupiah(event.gross_amount)}
                             {Number(event.refund_deductions) > 0 && <> − refund {rupiah(event.refund_deductions)}</>}

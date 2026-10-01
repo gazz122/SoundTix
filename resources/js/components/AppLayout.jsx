@@ -1,4 +1,5 @@
 import { Link, router, usePage } from '@inertiajs/react';
+import { Bell, Menu, Plus } from 'lucide-react';
 import { useState } from 'react';
 import Logo from '@/components/Logo';
 import { RoleBadge } from '@/components/RoleBadge';
@@ -26,6 +27,7 @@ const navigation = {
         { label: 'Kelola Pengguna', href: '/admin/users' },
         { label: 'Penarikan Dana', href: '/admin/payouts' },
         { label: 'Refund', href: '/admin/refunds' },
+        { label: 'Kelola FAQ', href: '/admin/faqs' },
     ],
 };
 
@@ -66,13 +68,14 @@ export default function AppLayout({ children }) {
                         <Brand compact />
                         <div className="flex items-center gap-3">
                             <NotificationBell />
-                            <button
-                                type="button"
-                                onClick={() => setSidebarOpen((open) => !open)}
-                                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium"
-                            >
-                                Menu
-                            </button>
+<button
+                                    type="button"
+                                    onClick={() => setSidebarOpen((open) => !open)}
+                                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium"
+                                    aria-label="Buka menu"
+                                >
+                                    <Menu aria-hidden="true" className="h-5 w-5" />
+                                </button>
                         </div>
                     </header>
 
@@ -99,9 +102,7 @@ export default function AppLayout({ children }) {
                             className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-xl shadow-slate-900/10 transition-transform hover:scale-105 lg:hidden"
                             aria-label="Buat event baru"
                         >
-                            <svg aria-hidden="true" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                            </svg>
+                            <Plus aria-hidden="true" className="h-7 w-7" />
                         </Link>
                     )}
                 </div>
@@ -167,9 +168,7 @@ function NotificationBell() {
             title="Notifikasi"
             className="relative flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition-colors hover:border-indigo-300 hover:text-indigo-600"
         >
-            <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
-                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
-            </svg>
+            <Bell aria-hidden="true" className="h-5 w-5" />
             {unreadCount > 0 && (
                 <span className="absolute -right-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-indigo-600 px-1.5 py-0.5 text-[11px] font-semibold text-white">
                     {unreadCount > 9 ? '9+' : unreadCount}

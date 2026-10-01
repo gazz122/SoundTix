@@ -165,7 +165,7 @@ function CancelModal({ event, onClose }) {
                         onClick={submit}
                         className="bg-rose-600 hover:bg-rose-700 text-white text-sm font-medium py-2 px-5 rounded-lg transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {submitting ? 'Mengirim…' : 'Kirim Pengajuan Pembatalan'}
+                        {submitting ? 'Mengirim...' : 'Kirim Pengajuan Pembatalan'}
                     </button>
                 </div>
             </div>
@@ -282,7 +282,7 @@ function RundownSection({ event }) {
                             <div className="min-w-0">
                                 <div className="flex items-center gap-2">
                                     <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
-                                        {rundown.start_time}{rundown.end_time ? ` – ${rundown.end_time}` : ''}
+                                        {rundown.start_time}{rundown.end_time ? ` - ${rundown.end_time}` : ''}
                                     </span>
                                     <p className="font-medium text-slate-900">{rundown.title}</p>
                                 </div>

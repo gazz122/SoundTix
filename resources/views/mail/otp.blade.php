@@ -10,4 +10,4 @@ Masukkan kode tersebut untuk menyelesaikan verifikasi email. Kode berlaku selama
 
 Jika Anda tidak merasa mendaftar, abaikan email ini.
 
-— Tim SoundTix
+- Tim SoundTix

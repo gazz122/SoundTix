@@ -1,12 +1,14 @@
 import { Link, router, usePage } from '@inertiajs/react';
+import { Bell, Bookmark, Home, Search, Ticket, User } from 'lucide-react';
 import { useState } from 'react';
 import Logo from '@/components/Logo';
 
 const TABS = [
-    { label: 'Beranda', icon: 'M3 10.75 12 3l9 7.75V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', href: '/' },
-    { label: 'Tiket Saya', icon: 'M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2 4V9h3m-3 4h3m-3 4h3m7-8h.01M16 14h2', href: '/orders' },
-    { label: 'Notifikasi', icon: 'M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4', href: '/notifications' },
-    { label: 'Profil', icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 9a7 7 0 0 1 14 0', href: '/dashboard' },
+    { label: 'Beranda', Icon: Home, href: '/' },
+    { label: 'Jelajah', Icon: Search, href: '/jelajah' },
+    { label: 'Tiket Saya', Icon: Ticket, href: '/orders' },
+    { label: 'Tersimpan', Icon: Bookmark, href: '/saved' },
+    { label: 'Profil', Icon: User, href: '/dashboard' },
 ];
 
 export default function PublicLayout({ children }) {
@@ -28,12 +30,21 @@ export default function PublicLayout({ children }) {
 
                         <nav className="flex shrink-0 items-center gap-2 sm:gap-3 md:flex-1 md:justify-end">
                             {user ? (
-                                <Link
-                                    href="/dashboard"
-                                    className="bg-white text-indigo-700 hover:bg-indigo-50 font-medium py-2 px-3 sm:px-5 rounded-lg transition-all shadow-sm text-sm sm:text-base"
-                                >
-                                    Dashboard
-                                </Link>
+                                <>
+                                    <Link
+                                        href="/notifications"
+                                        aria-label="Notifikasi"
+                                        className="relative flex h-10 w-10 items-center justify-center rounded-lg bg-white/60 border border-slate-300 text-slate-700 transition-all hover:bg-white"
+                                    >
+                                        <Bell aria-hidden="true" className="h-5 w-5" />
+                                    </Link>
+                                    <Link
+                                        href="/dashboard"
+                                        className="bg-white text-indigo-700 hover:bg-indigo-50 font-medium py-2 px-3 sm:px-5 rounded-lg transition-all shadow-sm text-sm sm:text-base"
+                                    >
+                                        Dashboard
+                                    </Link>
+                                </>
                             ) : (
                                 <>
                                     <Link
@@ -63,7 +74,7 @@ export default function PublicLayout({ children }) {
 
             {user && (
                 <nav aria-label="Navigasi utama" className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/95 backdrop-blur-xl lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                    <div className="mx-auto grid max-w-md grid-cols-4">
+                    <div className="mx-auto grid max-w-md grid-cols-5">
                         {TABS.map((tab) => {
                             const active = url === tab.href || url.startsWith(`${tab.href}/`);
                             return (
@@ -71,13 +82,11 @@ export default function PublicLayout({ children }) {
                                     key={tab.label}
                                     href={tab.href}
                                     aria-current={active ? 'page' : undefined}
-                                    className={`flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors ${
+                                    className={`flex min-h-16 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[11px] font-medium transition-colors ${
                                         active ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
                                     }`}
                                 >
-                                    <svg aria-hidden="true" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d={tab.icon} />
-                                    </svg>
+                                    <tab.Icon aria-hidden="true" className="h-6 w-6" strokeWidth={active ? 2.2 : 1.8} />
                                     {tab.label}
                                 </Link>
                             );
@@ -111,6 +120,11 @@ export default function PublicLayout({ children }) {
                         <div>
                             <h4 className="text-sm font-semibold text-slate-900">Bantuan</h4>
                             <ul className="mt-3 space-y-2 text-sm text-slate-500">
+                                <li>
+                                    <Link href="/faq" className="hover:text-indigo-600 transition-colors">
+                                        Pusat Bantuan (FAQ)
+                                    </Link>
+                                </li>
                                 <li>
                                     <Link href="/contact" className="hover:text-indigo-600 transition-colors">
                                         Hubungi SoundTix

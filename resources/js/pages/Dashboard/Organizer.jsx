@@ -111,7 +111,7 @@ export default function Organizer({ stats }) {
                             <div key={i}>
                                 <div className="flex items-center justify-between text-xs">
                                     <span className="truncate font-medium text-slate-700">
-                                        {q.event_title} — {q.category_name}
+                                        {q.event_title} - {q.category_name}
                                     </span>
                                     <span className="ml-2 shrink-0 text-slate-500">
                                         {q.sold}/{q.total} ({q.percentage}%)

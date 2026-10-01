@@ -158,7 +158,7 @@ function ProcessModal({ payout, onClose }) {
                             disabled={processing}
                             className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 px-5 rounded-lg transition-all shadow-sm disabled:opacity-60"
                         >
-                            {processing ? 'Menyimpan…' : 'Simpan & Tandai Selesai'}
+                            {processing ? 'Menyimpan...' : 'Simpan & Tandai Selesai'}
                         </button>
                     </div>
                 </form>
@@ -189,7 +189,7 @@ function CopyableRow({ label, value, copyValue }) {
         <div className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
             <span className="text-slate-500">{label}</span>
             <span className="flex items-center gap-2">
-                <span className="font-medium text-slate-800">{value}</span>
+<span className="font-medium text-slate-800 tabular-nums">{value}</span>
                 <button
                     type="button"
                     onClick={copy}

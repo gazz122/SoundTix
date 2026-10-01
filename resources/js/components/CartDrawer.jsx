@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatDate, rupiah } from '@/lib/format';
 
 export default function CartDrawer({
@@ -121,7 +121,7 @@ export default function CartDrawer({
                                             <div className="min-w-0">
                                                 <p className="font-medium text-slate-900">{item.name}</p>
                                                 <p className="mt-0.5 text-sm text-slate-500">
-                                                    {rupiah(item.price)} Ã— {item.quantity}
+                                                    {rupiah(item.price)} x {item.quantity}
                                                 </p>
                                             </div>
                                             <p className="shrink-0 font-semibold text-slate-900">
@@ -175,7 +175,7 @@ export default function CartDrawer({
                     <div className="mt-3 flex items-center justify-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-2">
                         <ShieldCheckIcon />
                         <span className="text-xs font-medium text-emerald-800">
-                            Garansi aman â€” transaksi terenkripsi
+                            Garansi aman - transaksi terenkripsi
                         </span>
                     </div>
                 </footer>
@@ -213,7 +213,7 @@ function EventSummary({ event }) {
             <div className="min-w-0">
                 <p className="truncate font-semibold text-slate-900">{event.title}</p>
                 <p className="truncate text-sm text-slate-500">
-                    {event.city} Â· {event.venue_name}
+                    {event.city} · {event.venue_name}
                 </p>
             </div>
         </div>

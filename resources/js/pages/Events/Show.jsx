@@ -1,4 +1,5 @@
-import { Link, useForm, usePage } from '@inertiajs/react';
+import { Link, router, useForm, usePage } from '@inertiajs/react';
+import { Bookmark } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import CartDrawer from '@/components/CartDrawer';
 import PublicLayout from '@/components/PublicLayout';
@@ -16,6 +17,35 @@ export default function Show({ event }) {
     const user = auth?.user;
     const isCustomer = user?.role === 'customer';
     const hasTickets = event.ticket_categories.length > 0;
+    const [shared, setShared] = useState(false);
+    const [saved, setSaved] = useState(Boolean(event.is_saved));
+
+    function toggleSave() {
+        setSaved((current) => !current);
+        if (saved) {
+            router.delete(`/events/${event.slug}/save`, { preserveScroll: true });
+        } else {
+            router.post(`/events/${event.slug}/save`, {}, { preserveScroll: true });
+        }
+    }
+
+    async function handleShare() {
+        const payload = {
+            title: event.title,
+            text: `Jangan lupa ${event.title} di ${event.venue_name}!`,
+            url: window.location.href,
+        };
+        try {
+            if (navigator.share) {
+                await navigator.share(payload);
+                return;
+            }
+            await navigator.clipboard.writeText(window.location.href);
+            setShared(true);
+            setTimeout(() => setShared(false), 1500);
+        } catch {
+        }
+    }
 
     return (
         <PublicLayout>
@@ -42,7 +72,7 @@ export default function Show({ event }) {
                                 {event.city} · {event.venue_name}
                             </p>
                             <p className="mt-1 text-sm text-slate-400">
-                                {formatDate(event.event_date)} · {event.start_time} – {event.end_time || 'selesai'}
+                                {formatDate(event.event_date)} · {event.start_time} - {event.end_time || 'selesai'}
                                 <span className="mx-2">·</span>
                                 {event.address}
                             </p>
@@ -58,7 +88,35 @@ export default function Show({ event }) {
                         </div>
 
                         {hasTickets && (
-                            <TicketCta user={user} />
+                            <div className="flex items-start gap-3">
+                                {user && (
+                                    <button
+                                        type="button"
+                                        onClick={toggleSave}
+                                        aria-label={saved ? `Batalkan simpan ${event.title}` : `Simpan ${event.title}`}
+                                        aria-pressed={saved}
+                                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition-colors ${
+                                            saved
+                                                ? 'border-indigo-600 bg-indigo-600 text-white'
+                                                : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:text-indigo-600'
+                                        }`}
+                                    >
+                                        <Bookmark aria-hidden="true" className="h-5 w-5" fill={saved ? 'currentColor' : 'none'} />
+                                    </button>
+                                )}
+                                <button type="button" onClick={handleShare} aria-label="Bagikan event" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-50">
+                                    {shared ? (
+                                        <svg aria-hidden="true" className="h-5 w-5 text-emerald-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="m5 13 4 4L19 7" />
+                                        </svg>
+                                    ) : (
+                                        <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
+                                        </svg>
+                                    )}
+                                </button>
+                                <TicketCta user={user} />
+                            </div>
                         )}
                     </div>
 
@@ -93,7 +151,7 @@ export default function Show({ event }) {
                                         <div className="shrink-0 text-center">
                                             <p className="text-sm font-bold text-indigo-600">{item.start_time}</p>
                                             {item.end_time && (
-                                                <p className="text-xs text-slate-400">– {item.end_time}</p>
+                                                <p className="text-xs text-slate-400">- {item.end_time}</p>
                                             )}
                                         </div>
                                         <div className="min-w-0">
@@ -259,7 +317,7 @@ function TicketOrder({ event }) {
                                                     : `Sisa ${category.available_quantity} · maks. ${category.max_per_order} per transaksi`}
                                             </p>
                                         </div>
-                                        <p className="text-indigo-600 font-semibold">{rupiah(category.price)}</p>
+                                        <p className="text-indigo-600 font-semibold tabular-nums">{rupiah(category.price)}</p>
                                         <Stepper
                                             value={Number(quantity)}
                                             disabled={category.available_quantity === 0}
@@ -286,9 +344,9 @@ function TicketOrder({ event }) {
                             return (
                                 <li key={item.category_id} className="flex items-center justify-between gap-2 text-slate-700">
                                     <span>
-                                        {category.name} × {item.quantity}
+                                        {category.name} x {item.quantity}
                                     </span>
-                                    <span className="text-slate-900 font-medium">
+                                    <span className="text-slate-900 font-medium tabular-nums">
                                         {rupiah(category.price * Number(item.quantity))}
                                     </span>
                                 </li>
@@ -298,7 +356,7 @@ function TicketOrder({ event }) {
 
                     <div className="mt-4 flex items-center justify-between border-t border-slate-300/80 pt-3">
                         <span className="text-sm font-medium text-slate-700">Total</span>
-                        <span className="text-xl font-semibold text-slate-900">{rupiah(grandTotal)}</span>
+                        <span className="text-xl font-semibold text-slate-900 tabular-nums">{rupiah(grandTotal)}</span>
                     </div>
 
                     {overLimit && (
@@ -377,7 +435,7 @@ function TicketTable({ categories }) {
                         <tr key={category.id}>
                             <td className="px-4 py-3 font-medium text-slate-900">{category.name}</td>
                             <td className="px-4 py-3 text-slate-500 hidden sm:table-cell">{category.description}</td>
-                            <td className="px-4 py-3 text-right text-indigo-600 font-semibold">
+                            <td className="px-4 py-3 text-right text-indigo-600 font-semibold tabular-nums">
                                 {rupiah(category.price)}
                             </td>
                             <td className="px-4 py-3 text-right">

@@ -1,6 +1,7 @@
-﻿import { Link } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import AppLayout from '@/components/AppLayout';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
+import UiEmptyState from '@/components/ui/EmptyState';
 import { formatDate, rupiah } from '@/lib/format';
 
 export default function Index({ orders }) {
@@ -12,14 +13,19 @@ export default function Index({ orders }) {
             </div>
 
             {orders.length === 0 ? (
-                <div className="bg-white border border-slate-200/80 rounded-xl shadow-sm p-10 text-center">
-                    <p className="text-sm font-medium text-slate-700">Belum ada pesanan.</p>
-                    <Link
-                        href="/"
-                        className="mt-4 inline-block bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition-all shadow-sm"
-                    >
-                        Cari Event
-                    </Link>
+                <div className="bg-white border border-slate-200/80 rounded-xl shadow-sm">
+                    <UiEmptyState
+                        title="Belum Ada Pesanan"
+                        description="Kamu belum pernah memesan tiket. Cari event konser favoritmu dan amankan tiket sebelum kehabisan."
+                        action={
+                            <Link
+                                href="/"
+                                className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition-all shadow-sm"
+                            >
+                                Cari Event
+                            </Link>
+                        }
+                    />
                 </div>
             ) : (
                 <div className="grid gap-4 lg:grid-cols-2">
@@ -49,10 +55,10 @@ export default function Index({ orders }) {
 
                                 <div className="mt-4 flex items-end justify-between gap-3 border-t border-slate-200/80 pt-3">
                                     <p className="text-sm text-slate-500">
-                                        {order.items.length} kategori Â·{' '}
+                                        {order.items.length} kategori ·{' '}
                                         {order.items.reduce((sum, item) => sum + item.quantity, 0)} tiket
                                     </p>
-                                    <p className="font-semibold text-slate-900">{rupiah(order.grand_total)}</p>
+                                    <p className="font-semibold text-slate-900 tabular-nums">{rupiah(order.grand_total)}</p>
                                 </div>
                             </Link>
                         );

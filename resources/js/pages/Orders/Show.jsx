@@ -122,10 +122,10 @@ export default function Show({ order }) {
                                 )}
                             </div>
                             <div className="text-right">
-                                <p className="text-sm text-slate-500">
-                                    {rupiah(item.price_per_unit)} × {item.quantity}
+                                <p className="text-sm text-slate-500 tabular-nums">
+                                    {rupiah(item.price_per_unit)} x {item.quantity}
                                 </p>
-                                <p className="font-semibold text-slate-900">{rupiah(item.subtotal)}</p>
+                                <p className="font-semibold text-slate-900 tabular-nums">{rupiah(item.subtotal)}</p>
                             </div>
                         </div>
                     ))}
@@ -136,7 +136,7 @@ export default function Show({ order }) {
                     <Row label="Biaya Layanan" value={rupiah(order.admin_fee)} />
                     <div className="flex items-center justify-between pt-2 text-base font-semibold text-slate-900">
                         <span>Total</span>
-                        <span>{rupiah(order.grand_total)}</span>
+                        <span className="tabular-nums">{rupiah(order.grand_total)}</span>
                     </div>
                 </div>
             </div>
@@ -252,7 +252,7 @@ function BankTransferPanel({ order, payment }) {
                 </div>
                 <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 text-sm">
                     <span className="text-slate-500">Total Pembayaran</span>
-                    <span className="font-semibold text-slate-900">{rupiah(payment.gross_amount)}</span>
+                    <span className="font-semibold text-slate-900 tabular-nums">{rupiah(payment.gross_amount)}</span>
                 </div>
             </div>
 
@@ -292,7 +292,7 @@ function QrisPanel({ order, payment }) {
                 </p>
                 <p className="mt-3 text-sm">
                     <span className="text-slate-500">Total Pembayaran </span>
-                    <span className="font-semibold text-slate-900">{rupiah(payment.gross_amount)}</span>
+                    <span className="font-semibold text-slate-900 tabular-nums">{rupiah(payment.gross_amount)}</span>
                 </p>
             </div>
 
@@ -317,7 +317,7 @@ function CheckPaymentButton({ payment }) {
             }}
             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition-all shadow-sm disabled:opacity-60"
         >
-            {checking ? 'Memeriksa pembayaran…' : 'Cek Status Pembayaran'}
+            {checking ? 'Memeriksa pembayaran...' : 'Cek Status Pembayaran'}
         </button>
     );
 }
@@ -364,7 +364,7 @@ function ETicket({ ticket, order }) {
                 onClick={download}
                 className="mb-3 w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition-all shadow-sm disabled:opacity-60"
             >
-                {busy ? 'Menyiapkan PDF…' : 'Unduh E-Ticket (PDF)'}
+                {busy ? 'Menyiapkan PDF...' : 'Unduh E-Ticket (PDF)'}
             </button>
             <TicketCard refId={refId} ticket={ticket} order={order} />
         </div>
@@ -491,7 +491,7 @@ function RefundRequest({ order }) {
                 }}
                 className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                {submitting ? 'Mengirim…' : 'Ajukan Refund'}
+                {submitting ? 'Mengirim...' : 'Ajukan Refund'}
             </button>
         </div>
     );
@@ -548,8 +548,8 @@ function Countdown({ from }) {
     const seconds = remaining % 60;
 
     return (
-        <p className="mt-1 text-sm text-amber-700">
-            Sisa waktu: <span className="font-mono font-semibold">{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}</span>
+        <p className="mt-1 text-sm text-amber-700" aria-live="polite">
+            Sisa waktu: <span className="font-mono font-semibold tabular-nums">{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}</span>
         </p>
     );
 }

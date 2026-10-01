@@ -1,11 +1,11 @@
-﻿import { Link, router, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import jsQR from 'jsqr';
 import { useEffect, useRef, useState } from 'react';
 import Logo from '@/components/Logo';
 
-export default function Scanner({ rundowns = [] }) {
+export default function Scanner({ rundowns = [], scanStats = { scanned: 0, capacity: 0 } }) {
     const { flash } = usePage().props;
-    const result = flash?.scan_result ?? null;
+    const [result, setResult] = useState(flash?.scan_result ?? null);
 
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
@@ -51,6 +51,24 @@ export default function Scanner({ rundowns = [] }) {
         if (!cameraOn || !result) return;
         setScanning(true);
     }, [result, cameraOn]);
+
+    useEffect(() => {
+        setResult(flash?.scan_result ?? null);
+    }, [flash?.scan_result]);
+
+    useEffect(() => {
+        if (!result) {
+            return;
+        }
+
+        if (result.status === 'success') {
+            navigator.vibrate?.([100]);
+            const timer = setTimeout(() => setResult(null), 1500);
+            return () => clearTimeout(timer);
+        }
+
+        navigator.vibrate?.([300, 150, 300]);
+    }, [result]);
 
     useEffect(() => {
         let animationFrame;
@@ -154,18 +172,29 @@ export default function Scanner({ rundowns = [] }) {
                             <p className="text-xs text-slate-400">Validasi masuk penonton</p>
                         </div>
                     </Link>
-                    <button
-                        type="button"
-                        onClick={() => router.post('/logout')}
-                        className="rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-300 transition-all hover:bg-slate-800 hover:text-white"
-                    >
-                        Keluar
-                    </button>
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        {scanStats.capacity > 0 && (
+                            <div className="hidden min-w-32 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-center sm:block">
+                                <p className="font-mono text-sm font-semibold tracking-tight text-white tabular-nums">
+                                    {scanStats.scanned.toLocaleString('id-ID')}
+                                    <span className="text-slate-400">/{scanStats.capacity.toLocaleString('id-ID')}</span>
+                                </p>
+                                <p className="text-[10px] uppercase tracking-wider text-slate-400">Sudah Masuk</p>
+                            </div>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => router.post('/logout')}
+                            className="rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-300 transition-all hover:bg-slate-800 hover:text-white"
+                        >
+                            Keluar
+                        </button>
+                    </div>
                 </div>
             </header>
 
             <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-                {result && <ValidationResult result={result} />}
+                {result && <ValidationResult result={result} onDismiss={() => setResult(null)} />}
 
                 {rundowns.length > 0 && (
                     <div className="mb-6 overflow-hidden rounded-xl border border-slate-800/60 bg-slate-900 shadow-lg">
@@ -192,7 +221,7 @@ export default function Scanner({ rundowns = [] }) {
                                                     className="flex gap-3 text-sm"
                                                 >
                                                     <span className="shrink-0 font-mono font-medium text-indigo-300">
-                                                        {item.start_time}{item.end_time ? `–${item.end_time}` : ''}
+                                                        {item.start_time}{item.end_time ? `-${item.end_time}` : ''}
                                                     </span>
                                                     <span className="text-slate-200">
                                                         {item.title}
@@ -288,57 +317,35 @@ export default function Scanner({ rundowns = [] }) {
     );
 }
 
-function ValidationResult({ result }) {
+function ValidationResult({ result, onDismiss }) {
     const accepted = result.status === 'success';
-    const panelClass = accepted
-        ? 'bg-emerald-500/10 border-emerald-500/30'
-        : 'bg-red-500/10 border-red-500/30';
-    const badgeClass = accepted ? 'bg-emerald-500' : 'bg-red-500';
-    const accentClass = accepted ? 'text-emerald-300' : 'text-red-300';
+    const gated = ['not_open', 'closed', 'no_event_day'].includes(result.status);
+
+    const panelClass = accepted ? 'bg-emerald-500' : gated ? 'bg-amber-400' : 'bg-red-500';
+    const title = accepted ? 'TIKET VALID' : gated ? 'PERLU CEK' : 'TIKET DITOLAK';
+    const mark = accepted ? '✓' : gated ? '?' : '✕';
 
     return (
-        <div className={`border rounded-xl p-5 shadow-lg ${panelClass}`}>
-            <div className="flex items-center gap-3">
-                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white font-bold dark:text-slate-950 ${badgeClass}`}>
-                    {accepted ? '✓' : '!'}
-                </span>
-                <div>
-                    <p className={`font-semibold ${accentClass}`}>{result.message}</p>
-                    {result.ticket && (
-                        <p className={`mt-0.5 text-sm ${accepted ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {result.ticket.status_label} · {result.ticket.event_title}
-                        </p>
-                    )}
-                </div>
-            </div>
-
-            {result.ticket && accepted && (
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-200">
-                    <Detail label="Event" value={result.ticket.event_title} />
-                    <Detail label="Tanggal" value={formatDate(result.ticket.event_date)} />
-                    <Detail label="Kategori" value={result.ticket.category} />
-                    <Detail label="No. Order" value={result.ticket.order_code} />
-                    <Detail label="Kode Tiket" value={result.ticket.ticket_code} />
-                    <Detail label="Waktu Validasi" value={formatDateTime(result.ticket.used_at)} />
-                </div>
+        <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center px-6 text-center ${panelClass}`} role="status" aria-live="assertive">
+            <span aria-hidden="true" className="flex h-24 w-24 items-center justify-center rounded-full bg-white/25 text-5xl font-bold leading-none text-white">
+                {mark}
+            </span>
+            <p className="mt-6 text-3xl font-extrabold tracking-tight text-white">{title}</p>
+            <p className="mt-3 max-w-md text-base font-medium text-white/95">{result.message}</p>
+            {result.ticket && (
+                <p className="mt-1 text-sm text-white/85">
+                    {result.ticket.category} · {result.ticket.event_title}
+                </p>
+            )}
+            {!accepted && (
+                <button
+                    type="button"
+                    onClick={onDismiss}
+                    className="mt-10 h-14 w-64 max-w-full rounded-xl bg-white px-6 text-base font-semibold text-slate-900 shadow-xl hover:bg-slate-100"
+                >
+                    Scan Lagi
+                </button>
             )}
         </div>
     );
-}
-
-function Detail({ label, value }) {
-    return (
-        <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-slate-400">{label}</p>
-            <p className="mt-0.5 font-medium text-slate-100">{value}</p>
-        </div>
-    );
-}
-
-function formatDate(value) {
-    return value ? new Date(value).toLocaleDateString('id-ID', { dateStyle: 'long' }) : '-';
-}
-
-function formatDateTime(value) {
-    return value ? new Date(value).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
 }

@@ -146,7 +146,7 @@ function Metric({ label, value }) {
     return (
         <div>
             <p className="text-xs text-slate-400">{label}</p>
-            <p className="font-medium text-slate-800">{value}</p>
+            <p className="font-medium text-slate-800 tabular-nums">{value}</p>
         </div>
     );
 }

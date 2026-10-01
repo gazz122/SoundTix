@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Enums\EventStatus;
 use App\Models\Event;
+use App\Models\User;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
@@ -12,7 +13,7 @@ class EventRepository
     /**
      * @param  array<string, mixed>  $filters
      */
-    public function publishedUpcomingPaginated(array $filters, int $perPage): LengthAwarePaginator
+    public function publishedUpcomingPaginated(array $filters, int $perPage, ?int $userId = null): LengthAwarePaginator
     {
         return Event::query()
             ->published()
@@ -20,8 +21,21 @@ class EventRepository
             ->filterable($filters)
             ->withMin('ticketCategories as starting_price', 'price')
             ->with('performers')
+            ->when($userId !== null, fn ($query) => $query->withExists(['savedByUsers' => fn ($query) => $query->where('saved_events.user_id', $userId)]))
             ->orderBy('event_date')
             ->orderBy('start_time')
+            ->paginate($perPage);
+    }
+
+    public function savedForUser(User $user, int $perPage): LengthAwarePaginator
+    {
+        return $user->savedEvents()
+            ->published()
+            ->upcoming()
+            ->with('performers')
+            ->withMin('ticketCategories as starting_price', 'price')
+            ->withExists(['savedByUsers' => fn ($query) => $query->where('saved_events.user_id', $user->id)])
+            ->orderByPivot('updated_at', 'desc')
             ->paginate($perPage);
     }
 
@@ -38,11 +52,12 @@ class EventRepository
             ->get();
     }
 
-    public function findPublishedBySlug(string $slug): Event
+    public function findPublishedBySlug(string $slug, ?int $userId = null): Event
     {
         return Event::query()
             ->published()
             ->with(['performers', 'ticketCategories', 'organizer', 'rundowns'])
+            ->when($userId !== null, fn ($query) => $query->withExists(['savedByUsers' => fn ($query) => $query->where('saved_events.user_id', $userId)]))
             ->where('slug', $slug)
             ->firstOrFail();
     }

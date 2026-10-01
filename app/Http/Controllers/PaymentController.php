@@ -10,15 +10,113 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\User;
 use App\Services\PaymentGateway\PaymentGatewayInterface;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class PaymentController extends Controller
 {
     public function __construct(private PaymentGatewayInterface $gateway) {}
 
-    public function pay(Request $request, Order $order): RedirectResponse
+    public function webhook(Request $request): JsonResponse
+    {
+        Log::info('Midtrans Webhook Received:', $request->all());
+
+        $orderId = $request->input('order_id');
+        $statusCode = $request->input('status_code');
+        $grossAmount = $request->input('gross_amount');
+        $signature = $request->input('signature_key');
+        $serverKey = config('services.midtrans.server_key');
+
+        if ((! is_string($orderId) && ! is_int($orderId))
+            || (! is_string($statusCode) && ! is_int($statusCode))
+            || (! is_string($grossAmount) && ! is_int($grossAmount) && ! is_float($grossAmount))
+            || ! is_numeric($grossAmount)
+            || ! is_string($signature)
+            || ! is_string($serverKey)
+            || $serverKey === '') {
+            Log::warning('Midtrans webhook signature validation failed.', [
+                'order_id' => $orderId,
+                'expected_signature' => null,
+                'received_signature' => $signature,
+            ]);
+
+            return response()->json(['message' => 'Invalid signature'], 403);
+        }
+
+        $orderId = (string) $orderId;
+        $statusCode = (string) $statusCode;
+        $grossAmount = (string) $grossAmount;
+        $grossAmountCandidates = array_unique([
+            $grossAmount,
+            number_format((float) $grossAmount, 2, '.', ''),
+        ]);
+        $expectedSignatures = array_map(
+            fn (string $amount): string => hash('sha512', $orderId.$statusCode.$amount.$serverKey),
+            $grossAmountCandidates,
+        );
+
+        $signatureIsValid = false;
+        foreach ($expectedSignatures as $expectedSignature) {
+            if (hash_equals($expectedSignature, $signature)) {
+                $signatureIsValid = true;
+
+                break;
+            }
+        }
+
+        if (! $signatureIsValid) {
+            Log::warning('Midtrans webhook signature validation failed.', [
+                'order_id' => $orderId,
+                'expected_signatures' => $expectedSignatures,
+                'received_signature' => $signature,
+            ]);
+
+            return response()->json(['message' => 'Invalid signature'], 403);
+        }
+
+        $payment = Payment::query()
+            ->whereRelation('order', 'order_code', $orderId)
+            ->first()
+            ?? Payment::query()->where('transaction_id', $orderId)->first();
+
+        if ($payment === null) {
+            return response()->json(['message' => 'Payment not found'], 404);
+        }
+
+        $transactionStatus = $request->input('transaction_status');
+        $fraudStatus = $request->input('fraud_status');
+
+        $result = match ($transactionStatus) {
+            'settlement' => PaymentStatus::Settlement,
+            'capture' => match ($fraudStatus) {
+                'accept' => PaymentStatus::Settlement,
+                'deny' => PaymentStatus::Failure,
+                default => null,
+            },
+            'pending' => PaymentStatus::Pending,
+            'deny', 'cancel' => PaymentStatus::Failure,
+            'expire' => PaymentStatus::Expire,
+            default => null,
+        };
+
+        if ($result === PaymentStatus::Settlement || $result === PaymentStatus::Expire) {
+            $this->gateway->process($payment, $result);
+        } elseif ($result === PaymentStatus::Failure) {
+            Payment::query()
+                ->whereKey($payment->id)
+                ->where('payment_status', PaymentStatus::Pending->value)
+                ->update(['payment_status' => PaymentStatus::Failure->value]);
+        }
+
+        return response()->json(['message' => 'Success'], 200);
+    }
+
+    public function pay(Request $request, Order $order): SymfonyResponse
     {
         $this->guardOwned($request, $order);
 
@@ -47,7 +145,12 @@ class PaymentController extends Controller
             ])['bank'];
         }
 
-        $this->gateway->createPayment($order, PaymentType::from($method), $bank);
+        $payment = $this->gateway->createPayment($order, PaymentType::from($method), $bank);
+
+        $redirectUrl = data_get($payment->raw_response, 'redirect_url');
+        if (is_string($redirectUrl) && $redirectUrl !== '') {
+            return Inertia::location($redirectUrl);
+        }
 
         return redirect()->route('orders.show', $order->order_code)->with(
             'success',
