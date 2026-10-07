@@ -95,22 +95,22 @@ export default function PublicLayout({ children }) {
                 </nav>
             )}
 
-            <footer className={`border-t border-slate-200/80 bg-white ${user ? 'pb-20 lg:pb-0' : ''}`}>
+            <footer className={`border-t border-indigo-100 bg-indigo-50 ${user ? 'pb-20 lg:pb-0' : ''}`}>
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
                     <div className="grid gap-8 md:grid-cols-3">
                         <div>
                             <Link href="/" className="flex items-center gap-2.5">
                                 <Logo iconClassName="h-10 w-10" textClassName="text-lg font-semibold" />
                             </Link>
-                            <p className="mt-3 max-w-xs text-sm text-slate-500">
+                            <p className="mt-3 max-w-xs text-sm text-slate-600">
                                 Platform e-ticketing konser digital. Temukan event, pesan tiket, dan masuk venue
                                 dengan mudah lewat tiket QR aman.
                             </p>
                         </div>
 
                         <div>
-                            <h4 className="text-sm font-semibold text-slate-900">Jelajahi SoundTix</h4>
-                            <ul className="mt-3 space-y-2 text-sm text-slate-500">
+                            <h4 className="text-sm font-semibold text-indigo-950">Jelajahi SoundTix</h4>
+                            <ul className="mt-3 space-y-2 text-sm text-slate-600">
                                 <li><Link href="/about" className="hover:text-indigo-600 transition-colors">Tentang SoundTix</Link></li>
                                 <li><Link href="/" className="hover:text-indigo-600 transition-colors">Mencari Event</Link></li>
                                 <li><Link href="/organizer-guide" className="hover:text-indigo-600 transition-colors">Panduan Penyelenggara</Link></li>
@@ -118,8 +118,8 @@ export default function PublicLayout({ children }) {
                         </div>
 
                         <div>
-                            <h4 className="text-sm font-semibold text-slate-900">Bantuan</h4>
-                            <ul className="mt-3 space-y-2 text-sm text-slate-500">
+                            <h4 className="text-sm font-semibold text-indigo-950">Bantuan</h4>
+                            <ul className="mt-3 space-y-2 text-sm text-slate-600">
                                 <li>
                                     <Link href="/faq" className="hover:text-indigo-600 transition-colors">
                                         Pusat Bantuan (FAQ)
@@ -135,7 +135,7 @@ export default function PublicLayout({ children }) {
                         </div>
                     </div>
 
-                    <div className="mt-8 border-t border-slate-200/80 pt-6 text-xs text-slate-400">
+                    <div className="mt-8 border-t border-indigo-100 pt-6 text-xs text-slate-500">
                         <p>© {new Date().getFullYear()} SoundTix. Seluruh hak cipta dilindungi.</p>
                     </div>
                 </div>

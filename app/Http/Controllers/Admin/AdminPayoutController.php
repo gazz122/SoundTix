@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Enums\PayoutStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Payout;
 use App\Services\PayoutService;
@@ -37,27 +36,6 @@ class AdminPayoutController extends Controller
                 'admin_notes' => $payout->admin_notes,
                 'processed_at' => $payout->processed_at?->toIso8601String(),
             ]),
-        ]);
-    }
-
-    public function approve(Request $request, int $payoutId): JsonResponse
-    {
-        try {
-            $approved = $this->payouts->approvePayout($payoutId, $request->user()->id);
-        } catch (ValidationException $exception) {
-            return response()->json(['message' => $exception->getMessage(), 'errors' => $exception->errors()], 422);
-        }
-
-        $payout = Payout::find($payoutId);
-
-        return response()->json([
-            'approved' => $approved,
-            'payout' => [
-                'id' => $payout?->id,
-                'status' => $payout?->status?->value ?? PayoutStatus::Failed->value,
-                'status_label' => $payout?->status?->label(),
-                'processed_at' => $payout?->processed_at?->toIso8601String(),
-            ],
         ]);
     }
 

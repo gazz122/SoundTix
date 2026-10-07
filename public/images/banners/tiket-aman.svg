@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" width="1200" height="400" role="img" aria-label="Tiket aman dan refund mudah di SoundTix">
+    <rect width="1200" height="400" fill="#f8fafc"/>
+    <circle cx="1140" cy="60" r="170" fill="#e2e8f0"/>
+    <circle cx="1070" cy="390" r="130" fill="#e0e7ff"/>
+    <circle cx="60" cy="40" r="100" fill="#e2e8f0"/>
+    <text x="120" y="170" font-family="system-ui, sans-serif" font-size="58" font-weight="700" fill="#0f172a">Tiket aman, refund mudah</text>
+    <text x="120" y="222" font-family="system-ui, sans-serif" font-size="30" fill="#475569">Status pembayaran transparan, e-tiket langsung masuk email.</text>
+    <rect x="120" y="252" width="210" height="56" rx="28" fill="#334155"/>
+    <text x="225" y="289" text-anchor="middle" font-family="system-ui, sans-serif" font-size="24" font-weight="600" fill="#ffffff">Pelajari</text>
+</svg>

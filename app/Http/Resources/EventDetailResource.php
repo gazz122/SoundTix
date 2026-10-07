@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\EventDay;
 use App\Models\EventRundown;
 use Illuminate\Http\Request;
 
@@ -17,6 +18,16 @@ class EventDetailResource extends EventResource
             'organizer' => ['id' => $this->organizer->id, 'name' => $this->organizer->name],
             'open_gate' => $this->wib($this->open_gate, 'Y-m-d H:i'),
             'close_gate' => $this->wib($this->close_gate, 'Y-m-d H:i'),
+            'duration_type' => $this->duration_type,
+            'event_days' => $this->eventDays
+                ->map(fn (EventDay $day) => [
+                    'day_number' => $day->day_number,
+                    'date' => $day->date?->format('Y-m-d'),
+                    'open_gate' => $this->wib($day->open_gate, 'Y-m-d H:i'),
+                    'close_gate' => $this->wib($day->close_gate, 'Y-m-d H:i'),
+                ])
+                ->values()
+                ->all(),
             'rundowns' => $this->rundownsPayload(),
         ];
     }

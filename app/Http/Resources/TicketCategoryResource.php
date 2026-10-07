@@ -16,6 +16,11 @@ class TicketCategoryResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'description' => $this->description,
+            'access_type' => $this->access_type,
+            'event_day' => $this->eventDay !== null ? [
+                'day_number' => $this->eventDay->day_number,
+                'date' => $this->eventDay->date?->format('Y-m-d'),
+            ] : null,
             'price' => (float) $this->price,
             'total_quantity' => $this->total_quantity,
             'available_quantity' => $this->available_quantity,

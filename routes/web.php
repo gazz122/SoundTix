@@ -102,11 +102,10 @@ Route::middleware('auth')->group(function () {
         Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
 
         Route::get('/payouts', [AdminPayoutPageController::class, 'index'])->name('payouts.index');
-        Route::post('/payouts/{payout}/approve', [AdminPayoutPageController::class, 'approve'])->name('payouts.approve');
         Route::post('/payouts/{payout}/complete', [AdminPayoutPageController::class, 'complete'])->name('payouts.complete');
 
         Route::get('/refunds', [AdminRefundPageController::class, 'index'])->name('refunds.index');
-        Route::post('/refunds/{refund}/approve', [AdminRefundPageController::class, 'approve'])->name('refunds.approve');
+        Route::post('/refunds/{refund}/complete', [AdminRefundPageController::class, 'complete'])->name('refunds.complete');
         Route::post('/refunds/events/{event}/approve-cancellation', [AdminRefundPageController::class, 'approveCancellation'])->name('refunds.events.approve-cancellation');
         Route::post('/refunds/events/{event}/reject-cancellation', [AdminRefundPageController::class, 'rejectCancellation'])->name('refunds.events.reject-cancellation');
 
@@ -131,14 +130,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/orders', [OrderController::class, 'index'])->name('index');
         Route::get('/orders/{order:order_code}', [OrderController::class, 'show'])->name('show');
         Route::post('/orders/{order:order_code}/cancel', [OrderController::class, 'cancel'])->name('cancel');
-        Route::post('/orders/{order:order_code}/refund', [OrderController::class, 'refund'])->name('refund');
         Route::post('/events/{slug}/order', [OrderController::class, 'store'])->name('store');
     });
 
     Route::middleware('role:customer')->name('payments.')->group(function () {
         Route::post('/orders/{order:order_code}/pay', [PaymentController::class, 'pay'])->name('pay');
-        Route::post('/payments/{payment}/settle', [PaymentController::class, 'settle'])->name('settle');
-        Route::post('/payments/{payment}/expire', [PaymentController::class, 'expire'])->name('expire');
+        Route::get('/payments/return/{order:order_code}', [PaymentController::class, 'returnFromGateway'])->name('return');
         Route::post('/payments/{payment}/check', [PaymentController::class, 'checkStatus'])->name('check');
     });
 });

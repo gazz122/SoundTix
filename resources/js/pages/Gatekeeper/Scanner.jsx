@@ -213,6 +213,17 @@ export default function Scanner({ rundowns = [], scanStats = { scanned: 0, capac
                                             Pintu buka {event.open_gate} WIB{event.close_gate ? ` · tutup ${event.close_gate} WIB` : ''}
                                         </p>
                                     )}
+                                    {event.duration_type === 'multi_day' && event.event_days?.some((day) => day.open_gate || day.close_gate) && (
+                                        <div className="mt-2 space-y-1">
+                                            {event.event_days.map((day) => (day.open_gate || day.close_gate) && (
+                                                <p key={day.day_number} className="text-xs text-indigo-300">
+                                                    Day {day.day_number} · {day.date}
+                                                    {day.open_gate && ` · pintu buka ${day.open_gate} WIB`}
+                                                    {day.close_gate && ` · tutup ${day.close_gate} WIB`}
+                                                </p>
+                                            ))}
+                                        </div>
+                                    )}
                                     {event.rundowns.length > 0 ? (
                                         <ul className="mt-3 space-y-2">
                                             {event.rundowns.map((item, index) => (

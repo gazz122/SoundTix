@@ -30,12 +30,34 @@ export default function Show({ event }) {
 
                 <dl className="mt-6 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
                     <Info label="Tanggal" value={event.event_date ? formatDate(event.event_date) : '-'} />
-                    <Info label="Waktu" value={event.start_time} />
+                    <Info label="Mulai Acara" value={event.start_time} />
                     <Info label="Alamat" value={event.address} />
                     <Info label="Kategori Tiket" value={String(event.ticket_categories_count ?? 0)} />
                     <Info label="Buka Pintu" value={event.open_gate ? `${event.open_gate_label} WIB` : 'Belum diatur'} />
                     <Info label="Tutup Pintu" value={event.close_gate ? `${event.close_gate_label} WIB` : 'Belum diatur'} />
                 </dl>
+
+                {event.duration_type === 'multi_day' && (
+                    <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                        <h2 className="text-sm font-semibold text-slate-800">Jadwal Pintu per Hari</h2>
+                        <div className="mt-3 space-y-2">
+                            {event.event_days.map((day) => (
+                                <p key={day.day_number} className="text-sm text-slate-600">
+                                    <span className="font-medium text-slate-800">
+                                        Day {day.day_number} · {formatDate(day.date)}
+                                    </span>
+                                    {' · '}
+                                    Buka {day.open_gate ? `${day.open_gate.replace('T', ' ')} WIB` : 'Belum diatur'}
+                                    {' · '}
+                                    Tutup {day.close_gate ? `${day.close_gate.replace('T', ' ')} WIB` : 'Belum diatur'}
+                                </p>
+                            ))}
+                        </div>
+                        <p className="mt-3 text-xs text-slate-500">
+                            Jam mulai acara ({event.start_time}) terpisah dari jam buka dan tutup pintu.
+                        </p>
+                    </div>
+                )}
 
                 {event.performers?.length > 0 && (
                     <p className="mt-4 text-sm text-slate-600">

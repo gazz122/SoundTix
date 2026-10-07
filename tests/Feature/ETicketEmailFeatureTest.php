@@ -44,7 +44,7 @@ class ETicketEmailFeatureTest extends TestCase
         $category->decrement('available_quantity', $quantity);
 
         $this->actingAs($customer)->post("/orders/{$order->order_code}/pay", ['method' => 'qris']);
-        $this->actingAs($customer)->post("/payments/{$order->payments()->first()->id}/settle");
+        $this->actingAs($customer)->post("/payments/{$order->payments()->first()->id}/check");
 
         return $order->fresh();
     }
@@ -69,6 +69,56 @@ class ETicketEmailFeatureTest extends TestCase
         foreach (Mail::sent(ETicketEmail::class) as $mail) {
             $this->assertTrue(getimagesizefromstring($mail->qrPng)[2] === IMAGETYPE_PNG);
         }
+    }
+
+    public function test_day_specific_ticket_email_uses_the_selected_day_date(): void
+    {
+        Mail::fake();
+
+        $customer = User::factory()->create();
+        $event = Event::factory()->published()->create([
+            'event_date' => '2026-10-07',
+            'duration_type' => 'multi_day',
+            'total_days' => 3,
+        ]);
+        $event->eventDays()->createMany([
+            ['day_number' => 1, 'date' => '2026-10-07'],
+            ['day_number' => 2, 'date' => '2026-10-08'],
+            ['day_number' => 3, 'date' => '2026-10-09'],
+        ]);
+        $day = $event->eventDays()->where('day_number', 3)->firstOrFail();
+        $category = $event->ticketCategories()->create([
+            'name' => 'Reguler',
+            'price' => 200_000,
+            'total_quantity' => 10,
+            'available_quantity' => 10,
+            'max_per_order' => 5,
+            'access_type' => 'SINGLE_DAY',
+            'event_day_id' => $day->id,
+        ]);
+        $order = Order::factory()->create([
+            'customer_id' => $customer->id,
+            'expires_at' => now()->addMinutes(15),
+            'total_amount' => 200_000,
+            'admin_fee' => 0,
+            'grand_total' => 200_000,
+        ]);
+        $order->orderItems()->create([
+            'ticket_category_id' => $category->id,
+            'quantity' => 1,
+            'price_per_unit' => 200_000,
+            'subtotal' => 200_000,
+        ]);
+        $category->decrement('available_quantity');
+
+        $this->actingAs($customer)->post("/orders/{$order->order_code}/pay", ['method' => 'qris']);
+        $this->actingAs($customer)->post("/payments/{$order->payments()->firstOrFail()->id}/check");
+
+        Mail::assertSent(
+            ETicketEmail::class,
+            fn (ETicketEmail $mail): bool => $mail->ticket['event_date'] === '09 Oct 2026'
+                && $mail->ticket['ticket_day_label'] === 'Day 3',
+        );
     }
 
     public function test_qr_code_renderer_produces_a_valid_png(): void

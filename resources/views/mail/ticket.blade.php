@@ -28,7 +28,7 @@
                             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:16px;">
                                 <tr>
                                     <td style="padding:4px 0;font-size:13px;color:#0f172a;">
-                                        <span style="color:#64748b;">Tanggal</span><br>
+                                        <span style="color:#64748b;">{{ $ticket['ticket_day_label'] ? $ticket['ticket_day_label'].' · ' : '' }}Tanggal</span><br>
                                         <strong>{{ $ticket['event_date'] }}</strong>
                                     </td>
                                     <td style="padding:4px 0;font-size:13px;color:#0f172a;">

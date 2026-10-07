@@ -98,27 +98,6 @@ class AdminPayoutWebFeatureTest extends TestCase
                 ->where('payouts.0.status', 'pending'));
     }
 
-    public function test_admin_can_approve_payout_via_web_form(): void
-    {
-        $admin = User::factory()->admin()->create();
-        [$organizer, $event] = $this->completedEventWithRevenue();
-        $payout = Payout::factory()->create([
-            'event_id' => $event->id,
-            'organizer_id' => $organizer->id,
-            'status' => 'pending',
-        ]);
-
-        $this->actingAs($admin)
-            ->post("/admin/payouts/{$payout->id}/approve")
-            ->assertRedirect(route('admin.payouts.index'));
-
-        $this->assertDatabaseHas('payouts', [
-            'id' => $payout->id,
-            'status' => 'completed',
-            'processed_by' => $admin->id,
-        ]);
-    }
-
     public function test_organizer_cannot_access_admin_payout_page(): void
     {
         $this->actingAs(User::factory()->organizer()->create())

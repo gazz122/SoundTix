@@ -44,18 +44,6 @@ class AdminPayoutPageController extends Controller
         ]);
     }
 
-    public function approve(Request $request, int $payoutId): RedirectResponse
-    {
-        try {
-            $approved = $this->payouts->approvePayout($payoutId, $request->user()->id);
-        } catch (ValidationException $exception) {
-            return back()->withErrors($exception->errors())->with('error', $exception->getMessage());
-        }
-
-        return redirect()->route('admin.payouts.index')
-            ->with('success', $approved ? 'Payout disetujui dan dana telah ditransfer.' : 'Payout gagal diproses oleh sistem.');
-    }
-
     public function complete(Request $request, Payout $payout): RedirectResponse
     {
         $data = $request->validate([

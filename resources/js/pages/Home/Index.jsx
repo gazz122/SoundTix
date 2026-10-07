@@ -1,19 +1,18 @@
 import { Link } from '@inertiajs/react';
+import BannerCarousel from '@/components/BannerCarousel';
 import EventCard from '@/components/EventCard';
-import HeroCarousel from '@/components/HeroCarousel';
 import PublicLayout from '@/components/PublicLayout';
 import UiEmptyState from '@/components/ui/EmptyState';
 
-export default function Index({ events, featured, filters }) {
+export default function Index({ events, banners, filters }) {
     const list = events.data ?? [];
-    const heroEvents = featured.data ?? [];
     const searching = Boolean(filters.q);
 
     return (
         <PublicLayout>
             {!searching && (
                 <>
-                    <HeroCarousel events={heroEvents} />
+                    <BannerCarousel banners={banners} />
                     <div className="mt-10 text-center">
                         <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900">Konser impian Anda, dalam sekali ketik.</h1>
                         <p className="mt-2 text-slate-500">

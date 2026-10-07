@@ -86,7 +86,11 @@ export default function CartDrawer({
                 <header className="flex items-center justify-between gap-3 border-b border-slate-200/80 px-6 py-4">
                     <div>
                         <h2 className="text-lg font-semibold text-slate-900">Keranjang Tiket</h2>
-                        <p className="text-xs text-slate-400">{formatDate(event?.event_date)}</p>
+                        <p className="text-xs text-slate-400">
+                            {event?.duration_type === 'multi_day' && event.event_days?.length
+                                ? event.event_days.map((day) => `Day ${day.day_number} · ${formatDate(day.date)}`).join(' · ')
+                                : formatDate(event?.event_date)}
+                        </p>
                     </div>
                     <div className="flex items-center gap-3">
                         <TimerBadge secondsLeft={secondsLeft} expired={expired} />
@@ -120,6 +124,14 @@ export default function CartDrawer({
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="min-w-0">
                                                 <p className="font-medium text-slate-900">{item.name}</p>
+                                                {item.event_day && (
+                                                    <p className="mt-0.5 text-xs font-medium text-indigo-600">
+                                                        Day {item.event_day.day_number} · {formatDate(item.event_day.date)}
+                                                    </p>
+                                                )}
+                                                {!item.event_day && item.access_type === 'ALL_DAYS' && event?.duration_type === 'multi_day' && (
+                                                    <p className="mt-0.5 text-xs font-medium text-indigo-600">Semua Hari</p>
+                                                )}
                                                 <p className="mt-0.5 text-sm text-slate-500">
                                                     {rupiah(item.price)} x {item.quantity}
                                                 </p>

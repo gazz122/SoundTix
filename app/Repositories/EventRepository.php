@@ -39,24 +39,11 @@ class EventRepository
             ->paginate($perPage);
     }
 
-    /** Latest published upcoming events for the homepage hero carousel. */
-    public function featuredPublishedUpcoming(int $limit = 4): Collection
-    {
-        return Event::query()
-            ->published()
-            ->upcoming()
-            ->with('performers')
-            ->orderBy('event_date')
-            ->orderBy('start_time')
-            ->limit($limit)
-            ->get();
-    }
-
     public function findPublishedBySlug(string $slug, ?int $userId = null): Event
     {
         return Event::query()
             ->published()
-            ->with(['performers', 'ticketCategories', 'organizer', 'rundowns'])
+            ->with(['performers', 'ticketCategories.eventDay', 'eventDays', 'organizer', 'rundowns'])
             ->when($userId !== null, fn ($query) => $query->withExists(['savedByUsers' => fn ($query) => $query->where('saved_events.user_id', $userId)]))
             ->where('slug', $slug)
             ->firstOrFail();

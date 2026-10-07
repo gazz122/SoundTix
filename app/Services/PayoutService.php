@@ -79,43 +79,6 @@ class PayoutService
         });
     }
 
-    public function approvePayout(int $payoutId, int $adminId): bool
-    {
-        return DB::transaction(function () use ($payoutId, $adminId) {
-            /** @var Payout|null $payout */
-            $payout = Payout::query()->lockForUpdate()->find($payoutId);
-
-            if ($payout === null) {
-                throw ValidationException::withMessages([
-                    'payout' => ['Payout tidak ditemukan.'],
-                ]);
-            }
-
-            if ($payout->status !== PayoutStatus::Pending) {
-                throw ValidationException::withMessages([
-                    'payout' => ['Hanya payout berstatus PENDING yang dapat disetujui.'],
-                ]);
-            }
-
-            if (! $this->triggerDisbursementGateway()) {
-                $payout->update([
-                    'status' => PayoutStatus::Failed,
-                    'processed_at' => now(),
-                ]);
-
-                return false;
-            }
-
-            $payout->update([
-                'status' => PayoutStatus::Completed,
-                'processed_at' => now(),
-                'processed_by' => $adminId,
-            ]);
-
-            return true;
-        });
-    }
-
     public function completePayout(int $payoutId, int $adminId, string $transferProofPath, ?string $adminNotes): void
     {
         DB::transaction(function () use ($payoutId, $adminId, $transferProofPath, $adminNotes) {
@@ -142,11 +105,6 @@ class PayoutService
                 'processed_by' => $adminId,
             ]);
         });
-    }
-
-    private function triggerDisbursementGateway(): bool
-    {
-        return true;
     }
 
     /**

@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\Banner;
 use App\Models\Event;
 use App\Models\Performer;
 use App\Models\TicketCategory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -71,13 +73,34 @@ class EventDiscoveryFeatureTest extends TestCase
             );
     }
 
-    public function test_homepage_exposes_featured_events_for_hero_carousel(): void
+    public function test_homepage_exposes_active_banners_ordered_for_carousel(): void
     {
-        Event::factory()->published()->count(4)->create();
+        Storage::fake('public');
+        Storage::disk('public')->put('banners/second.png', 'x');
+        Storage::disk('public')->put('banners/first.png', 'x');
+        Banner::factory()->create(['title' => 'Promo-library', 'image_path' => 'banners/library.png', 'order' => 20]);
+        Banner::factory()->create(['title' => 'Promo-first', 'image_path' => 'banners/first.png', 'order' => 1]);
+        Banner::factory()->create(['title' => 'Promo-second', 'image_path' => 'banners/second.png', 'order' => 10]);
+        Banner::factory()->inactive()->create(['image_path' => 'banners/hidden.png']);
 
         $this->get('/')->assertOk()->assertInertia(
             fn (Assert $page) => $page
-                ->has('featured.data', 4),
+                ->has('banners', 3)
+                ->where('banners.0.title', 'Promo-first')
+                ->where('banners.0.image_url', Storage::disk('public')->url('banners/first.png'))
+                ->where('banners.1.title', 'Promo-second')
+                ->where('banners.2.title', 'Promo-library'),
+        );
+    }
+
+    public function test_homepage_falls_back_to_static_banners_when_none_active(): void
+    {
+        Banner::factory()->inactive()->create();
+
+        $this->get('/')->assertOk()->assertInertia(
+            fn (Assert $page) => $page
+                ->has('banners', 3)
+                ->where('banners.0.image_url', '/images/banners/tiket-digital.svg'),
         );
     }
 

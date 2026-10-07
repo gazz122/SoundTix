@@ -15,7 +15,7 @@ class ETicketMailer
      */
     public function sendForOrder(Order $order): void
     {
-        $order->load('orderItems.ticketCategory.event', 'orderItems.tickets', 'customer');
+        $order->load('orderItems.ticketCategory.event', 'orderItems.ticketCategory.eventDay', 'orderItems.tickets', 'customer');
 
         foreach ($order->orderItems as $item) {
             $event = $item->ticketCategory?->event;
@@ -27,7 +27,16 @@ class ETicketMailer
                         'qr_payload' => $ticket->qr_payload,
                         'category' => $item->ticketCategory?->name,
                         'event_title' => $event?->title,
-                        'event_date' => $event?->event_date?->format('d M Y'),
+                        'event_date' => $item->ticketCategory?->access_type === 'SINGLE_DAY'
+                            ? $item->ticketCategory->eventDay?->date?->format('d M Y')
+                            : $event?->event_date?->format('d M Y'),
+                        'ticket_day_label' => $item->ticketCategory?->access_type === 'SINGLE_DAY'
+                            && $item->ticketCategory->eventDay !== null
+                            ? sprintf('Day %d', $item->ticketCategory->eventDay->day_number)
+                            : ($item->ticketCategory?->access_type === 'ALL_DAYS'
+                                && $event?->duration_type === 'multi_day'
+                                ? 'Semua Hari'
+                                : null),
                         'start_time' => $event?->start_time !== null ? substr((string) $event->start_time, 0, 5) : null,
                         'venue' => $event !== null ? sprintf('%s, %s', $event->venue_name, $event->city) : null,
                     ],

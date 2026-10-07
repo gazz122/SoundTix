@@ -48,6 +48,17 @@ class MockPaymentDriver implements PaymentGatewayInterface
             : PaymentStatus::from($payment->payment_status);
     }
 
+    public function refund(Payment $payment, int $amount, string $refundKey, string $reason): array
+    {
+        // ponytail: mock driver has no real balance to move, so every refund
+        // reports success; replace alongside a real gateway.
+        return [
+            'refunded' => true,
+            'status_message' => 'Refund diproses oleh simulasi pembayaran.',
+            'raw' => ['simulated' => true, 'refund_key' => $refundKey, 'amount' => $amount],
+        ];
+    }
+
     private function vaNumber(Order $order, string $bank): string
     {
         return Bank::from($bank)->vaPrefix().str_pad((string) $order->id, 10, '0', STR_PAD_LEFT);

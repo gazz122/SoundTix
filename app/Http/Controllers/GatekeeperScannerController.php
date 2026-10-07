@@ -18,14 +18,20 @@ class GatekeeperScannerController extends Controller
         $events = Event::query()
             ->published()
             ->upcoming()
-            ->with(['rundowns' => fn ($query) => $query->orderBy('start_time')])
+            ->with([
+                'rundowns' => fn ($query) => $query->orderBy('start_time'),
+                'eventDays',
+            ])
             ->orderBy('event_date')
             ->orderBy('start_time')
             ->get();
 
         $eventIds = $events->pluck('id');
 
-        $gateEvents = $events->filter(fn (Event $event) => $event->rundowns->isNotEmpty() || $event->open_gate !== null || $event->close_gate !== null)
+        $gateEvents = $events->filter(fn (Event $event) => $event->rundowns->isNotEmpty()
+            || $event->open_gate !== null
+            || $event->close_gate !== null
+            || $event->eventDays->contains(fn ($day) => $day->open_gate !== null || $day->close_gate !== null))
             ->take(5)
             ->values();
 
@@ -33,8 +39,18 @@ class GatekeeperScannerController extends Controller
             'id' => $event->id,
             'title' => $event->title,
             'event_date' => $event->event_date?->format('d M Y'),
+            'duration_type' => $event->duration_type,
             'open_gate' => $event->open_gate?->setTimezone('Asia/Jakarta')->format('H:i'),
             'close_gate' => $event->close_gate?->setTimezone('Asia/Jakarta')->format('H:i'),
+            'event_days' => $event->duration_type === 'multi_day' ? $event->eventDays
+                ->map(fn ($day) => [
+                    'day_number' => $day->day_number,
+                    'date' => $day->date?->format('d M Y'),
+                    'open_gate' => $day->open_gate?->setTimezone('Asia/Jakarta')->format('H:i'),
+                    'close_gate' => $day->close_gate?->setTimezone('Asia/Jakarta')->format('H:i'),
+                ])
+                ->values()
+                ->all() : [],
             'rundowns' => $event->rundowns
                 ->map(fn ($rundown) => [
                     'start_time' => substr((string) $rundown->start_time, 0, 5),

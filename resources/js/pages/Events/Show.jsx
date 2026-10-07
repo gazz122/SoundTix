@@ -72,15 +72,30 @@ export default function Show({ event }) {
                                 {event.city} · {event.venue_name}
                             </p>
                             <p className="mt-1 text-sm text-slate-400">
-                                {formatDate(event.event_date)} · {event.start_time} - {event.end_time || 'selesai'}
+                                {event.duration_type === 'multi_day' && event.event_days?.length
+                                    ? event.event_days.map((day) => `Day ${day.day_number} · ${formatDate(day.date)}`).join(' · ')
+                                    : formatDate(event.event_date)}
+                                {' · Acara mulai '}{event.start_time}{event.end_time ? ` - ${event.end_time}` : ''}
                                 <span className="mx-2">·</span>
                                 {event.address}
                             </p>
-                            {event.open_gate && (
+                            {event.duration_type === 'multi_day' ? (
+                                event.event_days?.some((day) => day.open_gate || day.close_gate) && (
+                                    <div className="mt-2 space-y-1 text-sm font-medium text-indigo-600">
+                                        {event.event_days.map((day) => (day.open_gate || day.close_gate) && (
+                                            <p key={day.day_number}>
+                                                Day {day.day_number} · {formatDate(day.date)}
+                                                {day.open_gate && ` · Pintu buka ${formatGate(day.open_gate)}`}
+                                                {day.close_gate && ` · tutup ${formatGate(day.close_gate)}`}
+                                            </p>
+                                        ))}
+                                    </div>
+                                )
+                            ) : event.open_gate ? (
                                 <p className="mt-1 text-sm font-medium text-indigo-600">
                                     Pintu dibuka {formatGate(event.open_gate)} · ditutup {formatGate(event.close_gate)}
                                 </p>
-                            )}
+                            ) : null}
                             <p className="text-sm text-slate-400">
                                 Dipromosikan oleh{' '}
                                 <span className="font-medium text-slate-600">{event.organizer.name}</span>
@@ -171,7 +186,7 @@ export default function Show({ event }) {
                         {isCustomer ? (
                             <TicketOrder event={event} />
                         ) : (
-                            <TicketTable categories={event.ticket_categories} />
+                                <TicketTable categories={event.ticket_categories} event={event} />
                         )}
                     </div>
                 </div>
@@ -233,6 +248,39 @@ function TicketCta({ user }) {
 function TicketOrder({ event }) {
     const categories = event.ticket_categories;
     const [drawerOpen, setDrawerOpen] = useState(false);
+    const ticketGroups = useMemo(() => {
+        const groups = new Map();
+
+        categories.forEach((category, index) => {
+            const day = category.event_day;
+            const label = day
+                ? `Day ${day.day_number}`
+                : category.access_type === 'SINGLE_DAY'
+                    ? 'Hari belum ditentukan'
+                    : event.duration_type === 'multi_day' && category.access_type === 'ALL_DAYS'
+                        ? 'Semua Hari'
+                        : null;
+            const key = label ?? 'tickets';
+
+            if (!groups.has(key)) {
+                groups.set(key, {
+                    key,
+                    label,
+                    date: day
+                        ? formatDate(day.date)
+                        : label === 'Semua Hari'
+                            ? event.event_days.map((eventDay) => formatDate(eventDay.date)).join(' · ')
+                            : null,
+                    dayNumber: day?.day_number ?? (label === 'Semua Hari' ? 0 : Number.MAX_SAFE_INTEGER),
+                    categories: [],
+                });
+            }
+
+            groups.get(key).categories.push({ category, index });
+        });
+
+        return [...groups.values()].sort((first, second) => first.dayNumber - second.dayNumber);
+    }, [categories, event.duration_type, event.event_days]);
 
     const { data, setData, post, processing, errors, transform } = useForm({
         items: categories.map((category) => ({ category_id: category.id, quantity: 0 })),
@@ -302,35 +350,45 @@ function TicketOrder({ event }) {
             <form onSubmit={submit} className="mt-3 grid gap-4 lg:grid-cols-3">
                 <div className="lg:col-span-2 rounded-xl border border-slate-200/80 overflow-hidden">
                     <div className="divide-y divide-slate-200/80 bg-white">
-                        {categories.map((category, index) => {
-                            const cap = Math.min(category.max_per_order, category.available_quantity);
-                            const quantity = data.items.find((item) => item.category_id === category.id)?.quantity ?? 0;
+                        {ticketGroups.map((group) => (
+                            <div key={group.key}>
+                                {group.label && (
+                                    <h3 className="border-b border-slate-200/80 bg-slate-50 px-4 py-2.5">
+                                        <span className="block text-sm font-semibold text-slate-800">{group.label}</span>
+                                        {group.date && <span className="block text-xs text-slate-500">{group.date}</span>}
+                                    </h3>
+                                )}
+                                {group.categories.map(({ category, index }) => {
+                                    const cap = Math.min(category.max_per_order, category.available_quantity);
+                                    const quantity = data.items.find((item) => item.category_id === category.id)?.quantity ?? 0;
 
-                            return (
-                                <div key={category.id} className="px-4 py-3">
-                                    <div className="flex flex-wrap items-center justify-between gap-3">
-                                        <div className="min-w-0">
-                                            <p className="font-medium text-slate-900">{category.name}</p>
-                                            <p className="text-xs text-slate-400">
-                                                {category.available_quantity === 0
-                                                    ? 'Habis terjual'
-                                                    : `Sisa ${category.available_quantity} · maks. ${category.max_per_order} per transaksi`}
+                                    return (
+                                        <div key={category.id} className="border-b border-slate-200/80 px-4 py-3 last:border-b-0">
+                                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <p className="font-medium text-slate-900">{category.name}</p>
+                                                    <p className="text-xs text-slate-400">
+                                                        {category.available_quantity === 0
+                                                            ? 'Habis terjual'
+                                                            : `Sisa ${category.available_quantity} · maks. ${category.max_per_order} per transaksi`}
+                                                    </p>
+                                                </div>
+                                                <p className="text-indigo-600 font-semibold tabular-nums">{rupiah(category.price)}</p>
+                                                <Stepper
+                                                    value={Number(quantity)}
+                                                    disabled={category.available_quantity === 0}
+                                                    onChange={(next) => changeQuantity(category.id, next)}
+                                                    cap={cap}
+                                                />
+                                            </div>
+                                            <p className="mt-1 text-sm text-rose-600">
+                                                {errors[`items.${index}.quantity`]}
                                             </p>
                                         </div>
-                                        <p className="text-indigo-600 font-semibold tabular-nums">{rupiah(category.price)}</p>
-                                        <Stepper
-                                            value={Number(quantity)}
-                                            disabled={category.available_quantity === 0}
-                                            onChange={(next) => changeQuantity(category.id, next)}
-                                            cap={cap}
-                                        />
-                                    </div>
-                                    <p className="mt-1 text-sm text-rose-600">
-                                        {errors[`items.${index}.quantity`]}
-                                    </p>
-                                </div>
-                            );
-                        })}
+                                    );
+                                })}
+                            </div>
+                        ))}
                     </div>
                 </div>
 
@@ -418,7 +476,7 @@ function Stepper({ value, onChange, cap, disabled }) {
     );
 }
 
-function TicketTable({ categories }) {
+function TicketTable({ categories, event }) {
     return (
         <div className="mt-3 rounded-xl border border-slate-200/80 overflow-hidden">
             <table className="w-full text-sm">
@@ -433,7 +491,18 @@ function TicketTable({ categories }) {
                 <tbody className="bg-white divide-y divide-slate-200/80">
                     {categories.map((category) => (
                         <tr key={category.id}>
-                            <td className="px-4 py-3 font-medium text-slate-900">{category.name}</td>
+                            <td className="px-4 py-3">
+                                <p className="font-medium text-slate-900">{category.name}</p>
+                                {category.event_day ? (
+                                    <p className="mt-0.5 text-xs font-medium text-indigo-600">
+                                        Day {category.event_day.day_number} · {formatDate(category.event_day.date)}
+                                    </p>
+                                ) : category.access_type === 'SINGLE_DAY' ? (
+                                    <p className="mt-0.5 text-xs font-medium text-amber-700">Hari belum ditentukan</p>
+                                ) : event.duration_type === 'multi_day' && category.access_type === 'ALL_DAYS' ? (
+                                    <p className="mt-0.5 text-xs font-medium text-indigo-600">Semua Hari</p>
+                                ) : null}
+                            </td>
                             <td className="px-4 py-3 text-slate-500 hidden sm:table-cell">{category.description}</td>
                             <td className="px-4 py-3 text-right text-indigo-600 font-semibold tabular-nums">
                                 {rupiah(category.price)}

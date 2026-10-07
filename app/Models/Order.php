@@ -40,7 +40,10 @@ class Order extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'customer_id');
+        // Orders are historical financial records: an order stays readable even
+        // after its customer is soft deleted, otherwise every screen that shows
+        // a customer name or notifies them fatals on a null relation.
+        return $this->belongsTo(User::class, 'customer_id')->withTrashed();
     }
 
     public function orderItems(): HasMany

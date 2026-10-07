@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\BannerResource;
 use App\Http\Resources\EventDetailResource;
 use App\Http\Resources\EventResource;
+use App\Models\Banner;
 use App\Models\Event;
 use App\Repositories\EventRepository;
 use Illuminate\Http\RedirectResponse;
@@ -23,9 +25,45 @@ class EventController extends Controller
 
         return Inertia::render('Home/Index', [
             'events' => EventResource::collection($events),
-            'featured' => EventResource::collection($this->events->featuredPublishedUpcoming(4)),
+            'banners' => $this->banners(),
             'filters' => $filters,
         ]);
+    }
+
+    /**
+     * Active promotional banners for the homepage carousel, with static
+     * placeholders so the hero never renders empty.
+     *
+     * @return list<array{id: int, title: string, image_url: string, link_url: string}>
+     */
+    private function banners(): array
+    {
+        $banners = Banner::query()->active()->get();
+
+        if ($banners->isEmpty()) {
+            return [
+                [
+                    'id' => 0,
+                    'title' => 'Tiket konser digital',
+                    'image_url' => '/images/banners/tiket-digital.svg',
+                    'link_url' => '/',
+                ],
+                [
+                    'id' => 0,
+                    'title' => 'Event baru tiap minggu',
+                    'image_url' => '/images/banners/jadwal-event.svg',
+                    'link_url' => '/',
+                ],
+                [
+                    'id' => 0,
+                    'title' => 'Tiket aman, refund mudah',
+                    'image_url' => '/images/banners/tiket-aman.svg',
+                    'link_url' => '/faq',
+                ],
+            ];
+        }
+
+        return BannerResource::collection($banners)->resolve();
     }
 
     public function explore(Request $request): Response

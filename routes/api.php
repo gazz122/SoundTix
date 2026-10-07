@@ -42,7 +42,6 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/users', [UserController::class, 'store']);
         Route::patch('/users/{user}', [UserController::class, 'update']);
         Route::get('/payouts', [AdminPayoutController::class, 'index']);
-        Route::post('/payouts/{payoutId}/approve', [AdminPayoutController::class, 'approve']);
         Route::post('/payouts/{payoutId}/complete', [AdminPayoutController::class, 'completePayout']);
     });
 });

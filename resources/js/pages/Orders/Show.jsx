@@ -1,7 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { QRCodeSVG } from 'qrcode.react';
 import html2pdf from 'html2pdf.js';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
 import { formatDate, rupiah } from '@/lib/format';
@@ -21,7 +21,11 @@ export default function Show({ order }) {
     const paid = order.status === 'paid';
     const activePayment = order.payments.find((payment) => payment.status === 'pending');
     const latestRefund = order.refunds[0];
-    const refundActive = latestRefund && ['pending', 'completed'].includes(latestRefund.status);
+
+    // Covers payments settled outside this tab (VA transfer from another device,
+    // or a Snap popup the user closed) so the order reflects reality without a
+    // manual click. Bounded so a gateway outage cannot poll forever.
+    useAutoCheckPendingPayment(activePayment);
 
     return (
         <AppLayout>
@@ -85,17 +89,27 @@ export default function Show({ order }) {
                 </div>
             )}
 
-            {paid && refundActive && (
-                <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50/60 px-4 py-3">
-                    <p className="text-sm font-medium text-amber-700">
-                        Refund berstatus {latestRefund.status_label}.
+            {latestRefund && (
+                <div
+                    className={`mt-6 rounded-lg border px-4 py-3 ${
+                        latestRefund.status === 'failed'
+                            ? 'border-rose-200 bg-rose-50/60'
+                            : 'border-amber-200 bg-amber-50/60'
+                    }`}
+                >
+                    <p
+                        className={`text-sm font-medium ${
+                            latestRefund.status === 'failed' ? 'text-rose-700' : 'text-amber-700'
+                        }`}
+                    >
+                        {latestRefund.status === 'failed'
+                            ? 'Refund belum berhasil diproses. Tim kami sedang menfollow up.'
+                            : 'Pengembalian dana sedang diproses ke metode pembayaran awal Anda.'}
                     </p>
-                    {latestRefund.reason && <p className="mt-1 text-sm text-amber-600">Alasan: {latestRefund.reason}</p>}
+                    {latestRefund.reason && (
+                        <p className="mt-1 text-sm text-slate-600">Alasan: {latestRefund.reason}</p>
+                    )}
                 </div>
-            )}
-
-            {paid && !refundActive && (
-                <RefundRequest order={order} />
             )}
 
             {order.tickets.length > 0 && (
@@ -117,7 +131,8 @@ export default function Show({ order }) {
                                 <p className="font-medium text-slate-900">{item.category}</p>
                                 {item.event && (
                                     <Link href={`/events/${item.event.slug}`} className="text-sm text-indigo-600 hover:text-indigo-700">
-                                        {item.event.title} · {formatDate(item.event.event_date)}
+                                        {item.event.title} · {item.event.ticket_day_label ? `${item.event.ticket_day_label} · ` : ''}
+                                        {formatDate(item.event.event_date)}
                                     </Link>
                                 )}
                             </div>
@@ -301,6 +316,32 @@ function QrisPanel({ order, payment }) {
     );
 }
 
+const AUTO_CHECK_INTERVAL_MS = 5000;
+const AUTO_CHECK_MAX_ATTEMPTS = 6;
+
+function useAutoCheckPendingPayment(payment) {
+    const attempts = useRef(0);
+
+    useEffect(() => {
+        if (!payment) {
+            attempts.current = 0;
+            return;
+        }
+
+        const id = setInterval(() => {
+            if (attempts.current >= AUTO_CHECK_MAX_ATTEMPTS) {
+                clearInterval(id);
+                return;
+            }
+
+            attempts.current += 1;
+            router.post(`/payments/${payment.id}/check`, {}, { preserveScroll: true });
+        }, AUTO_CHECK_INTERVAL_MS);
+
+        return () => clearInterval(id);
+    }, [payment?.id]);
+}
+
 function CheckPaymentButton({ payment }) {
     const [checking, setChecking] = useState(false);
 
@@ -407,13 +448,20 @@ function TicketCard({ refId, ticket, order }) {
                     <span style={{ ...ticketStyles.ticketCode, color: '#e0e7ff' }}>{ticket.ticket_code}</span>
                 </div>
                 <div style={ticketStyles.title}>{ticket.event_title}</div>
-                <div style={ticketStyles.subtitle}>{ticket.category} · {formatDate(ticket.event_date)} · {order.order_code}</div>
+                <div style={ticketStyles.subtitle}>
+                    {ticket.category} · {ticket.ticket_day_label ? `${ticket.ticket_day_label} · ` : ''}
+                    {formatDate(ticket.event_date)} · {order.order_code}
+                </div>
             </div>
 
             <div style={ticketStyles.body}>
                 <div style={ticketStyles.metaRow}>
                     <span style={ticketStyles.metaLabel}>Acara</span>
                     <span style={{ ...ticketStyles.metaValue, maxWidth: '70%' }}>{ticket.event_title}</span>
+                </div>
+                <div style={ticketStyles.metaRow}>
+                    <span style={ticketStyles.metaLabel}>Hari</span>
+                    <span style={ticketStyles.metaValue}>{ticket.ticket_day_label ?? 'Sesuai jadwal event'}</span>
                 </div>
                 <div style={ticketStyles.metaRow}>
                     <span style={ticketStyles.metaLabel}>Tanggal</span>
@@ -455,44 +503,6 @@ function TicketCard({ refId, ticket, order }) {
                 <div style={ticketStyles.skItem}>3. Panitia berhak menolak masuk jika tiket terbukti palsu atau duplikat.</div>
                 <div style={ticketStyles.skItem}>4. Masuknya penonton mengikuti ketentuan dan kebijakan lokasi acara.</div>
             </div>
-        </div>
-    );
-}
-
-function RefundRequest({ order }) {
-    const [reason, setReason] = useState('');
-    const [submitting, setSubmitting] = useState(false);
-
-    return (
-        <div className="mt-6 bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm p-6">
-            <h2 className="font-semibold text-slate-900">Ajukan Refund</h2>
-            <p className="mt-1 text-sm text-slate-500">
-                Pengajuan refund akan disetujui oleh admin. Jika disetujui, e-tiket dibatalkan dan stok dikembalikan.
-            </p>
-            <div className="mt-4">
-                <label htmlFor="refund-reason" className="block text-sm font-medium text-slate-700">
-                    Alasan pengajuan
-                </label>
-                <textarea
-                    id="refund-reason"
-                    rows={3}
-                    value={reason}
-                    onChange={(event) => setReason(event.target.value)}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
-                    placeholder="Contoh: tidak dapat hadir karena bentrok jadwal."
-                />
-            </div>
-            <button
-                type="button"
-                disabled={submitting || reason.trim().length === 0}
-                onClick={() => {
-                    setSubmitting(true);
-                    router.post(`/orders/${order.order_code}/refund`, { reason }, { preserveScroll: true });
-                }}
-                className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-                {submitting ? 'Mengirim...' : 'Ajukan Refund'}
-            </button>
         </div>
     );
 }

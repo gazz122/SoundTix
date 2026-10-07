@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\User;
 use App\Services\PaymentGateway\PaymentGatewayInterface;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use UnexpectedValueException;
 
 class PaymentController extends Controller
 {
@@ -90,6 +92,16 @@ class PaymentController extends Controller
 
         $transactionStatus = $request->input('transaction_status');
         $fraudStatus = $request->input('fraud_status');
+        $midtransTransactionId = $request->input('transaction_id');
+
+        // Midtrans issues its own transaction_id, distinct from the order_id we
+        // generated. Keep it so refunds can be checked for duplicates later.
+        if (is_string($midtransTransactionId) && $midtransTransactionId !== '') {
+            Payment::query()
+                ->whereKey($payment->id)
+                ->whereNull('midtrans_transaction_id')
+                ->update(['midtrans_transaction_id' => $midtransTransactionId]);
+        }
 
         $result = match ($transactionStatus) {
             'settlement' => PaymentStatus::Settlement,
@@ -158,6 +170,69 @@ class PaymentController extends Controller
         );
     }
 
+    /**
+     * Midtrans finish callback. The browser lands here right after the customer
+     * pays, which is usually before the server-to-server webhook arrives, so
+     * confirm the status with the gateway instead of waiting for the webhook.
+     */
+    public function returnFromGateway(Request $request, Order $order): RedirectResponse
+    {
+        $this->ensureCustomer($request->user(), $order->customer_id);
+
+        $payment = $order->payments()
+            ->where('payment_status', PaymentStatus::Pending->value)
+            ->latest('id')
+            ->first();
+
+        if ($payment === null) {
+            return redirect()->route('orders.show', $order->order_code);
+        }
+
+        try {
+            $status = $this->gateway->checkStatus($payment);
+        } catch (RequestException|UnexpectedValueException $exception) {
+            Log::warning('Midtrans return callback status check failed.', [
+                'transaction_id' => $payment->transaction_id,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return redirect()->route('orders.show', $order->order_code)->with(
+                'error',
+                'Gagal menghubungi penyedia pembayaran. Cek status pembayaran beberapa saat lagi.',
+            );
+        }
+
+        if ($status === PaymentStatus::Settlement) {
+            $this->gateway->process($payment, PaymentStatus::Settlement);
+
+            return redirect()->route('orders.show', $order->order_code)->with(
+                'success',
+                'Pembayaran dikonfirmasi. E-tiket Anda telah diterbitkan.',
+            );
+        }
+
+        if ($status === PaymentStatus::Expire) {
+            $this->gateway->process($payment, PaymentStatus::Expire);
+
+            return redirect()->route('orders.show', $order->order_code)->with(
+                'error',
+                'Pembayaran sudah kadaluarsa. Pesanan dibatalkan dan stok dikembalikan.',
+            );
+        }
+
+        if ($status === PaymentStatus::Failure) {
+            return redirect()->route('orders.show', $order->order_code)->with(
+                'error',
+                'Pembayaran ditolak oleh penyedia pembayaran.',
+            );
+        }
+
+        return redirect()->route('orders.show', $order->order_code)->with(
+            'success',
+            'Pembayaran belum terdeteksi. Jika sudah membayar, tunggu sebentar lalu cek status pembayaran.',
+        );
+    }
+
     public function checkStatus(Request $request, Payment $payment): RedirectResponse
     {
         $order = $this->guardPaymentOwned($request, $payment);
@@ -176,65 +251,31 @@ class PaymentController extends Controller
             );
         }
 
-        if ($this->gateway->checkStatus($payment) === PaymentStatus::Settlement) {
+        try {
+            $status = $this->gateway->checkStatus($payment);
+        } catch (RequestException|UnexpectedValueException $exception) {
+            Log::warning('Midtrans status check failed.', [
+                'transaction_id' => $payment->transaction_id,
+                'message' => $exception->getMessage(),
+            ]);
+
+            $status = null;
+        }
+
+        if ($status === PaymentStatus::Settlement) {
             $this->gateway->process($payment, PaymentStatus::Settlement);
+
+            return redirect()->route('orders.show', $order->order_code)->with(
+                'success',
+                'Pembayaran dikonfirmasi. E-tiket Anda telah diterbitkan.',
+            );
         }
 
         return redirect()->route('orders.show', $order->order_code)->with(
-            'success',
-            'Pembayaran dikonfirmasi. E-tiket Anda telah diterbitkan.',
-        );
-    }
-
-    public function settle(Request $request, Payment $payment): RedirectResponse
-    {
-        $order = $this->guardPaymentOwned($request, $payment);
-
-        if ($payment->payment_status !== PaymentStatus::Pending->value) {
-            return redirect()->route('orders.show', $order->order_code)->with(
-                'error',
-                'Transaksi ini sudah diproses.',
-            );
-        }
-
-        if ($order->status !== OrderStatus::Pending->value) {
-            return redirect()->route('orders.show', $order->order_code)->with(
-                'error',
-                'Pesanan ini tidak dapat diproses lagi.',
-            );
-        }
-
-        $this->gateway->process($payment, PaymentStatus::Settlement);
-
-        return redirect()->route('orders.show', $order->order_code)->with(
-            'success',
-            'Pembayaran berhasil. E-tiket Anda telah diterbitkan.',
-        );
-    }
-
-    public function expire(Request $request, Payment $payment): RedirectResponse
-    {
-        $order = $this->guardPaymentOwned($request, $payment);
-
-        if ($payment->payment_status !== PaymentStatus::Pending->value) {
-            return redirect()->route('orders.show', $order->order_code)->with(
-                'error',
-                'Transaksi ini sudah diproses.',
-            );
-        }
-
-        if ($order->status !== OrderStatus::Pending->value) {
-            return redirect()->route('orders.show', $order->order_code)->with(
-                'error',
-                'Pesanan ini tidak dapat diproses lagi.',
-            );
-        }
-
-        $this->gateway->process($payment, PaymentStatus::Expire);
-
-        return redirect()->route('orders.show', $order->order_code)->with(
-            'success',
-            'Pembayaran kadaluarsa. Pesanan dibatalkan dan stok dikembalikan.',
+            $status === null ? 'error' : 'success',
+            $status === null
+                ? 'Gagal menghubungi penyedia pembayaran. Coba lagi beberapa saat lagi.'
+                : "Status pembayaran saat ini: {$status->label()}.",
         );
     }
 

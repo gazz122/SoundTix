@@ -8,8 +8,11 @@ use App\Enums\PaymentType;
 use App\Mail\ETicketEmail;
 use App\Models\Event;
 use App\Models\Order;
+use App\Models\Payment;
 use App\Models\Ticket;
+use App\Models\TicketCategory;
 use App\Models\User;
+use App\Services\OrderExpirationService;
 use App\Services\PaymentGateway\MidtransPaymentDriver;
 use App\Services\PaymentGateway\PaymentGatewayInterface;
 use App\Services\TicketVerifier;
@@ -133,14 +136,17 @@ class PaymentFlowFeatureTest extends TestCase
         ]);
 
         $payment = app(MidtransPaymentDriver::class)->createPayment($order, PaymentType::BankTransfer, 'bca');
-        $returnUrl = route('orders.show', $order->order_code);
+        $orderUrl = route('orders.show', $order->order_code);
+        $returnUrl = route('payments.return', $order->order_code);
 
         Http::assertSent(fn (ClientRequest $request): bool => $request->url() === 'https://app.sandbox.midtrans.com/snap/v1/transactions'
             && $request->data()['override_notification_urls'] === [$webhookUrl]
             && $request->data()['callbacks'] === [
+                // The finish URL must confirm with the gateway itself so the
+                // customer never has to wait for the webhook.
                 'finish' => $returnUrl,
-                'unfinish' => $returnUrl,
-                'error' => $returnUrl,
+                'unfinish' => $orderUrl,
+                'error' => $orderUrl,
             ]
             && $request->data()['transaction_details']['order_id'] === $payment->transaction_id);
         $this->assertSame(PaymentStatus::Pending->value, $payment->payment_status);
@@ -342,7 +348,7 @@ class PaymentFlowFeatureTest extends TestCase
         $this->assertSame(0, $order->payments()->count());
     }
 
-    public function test_settle_marks_order_paid_and_issues_tickets(): void
+    public function test_settlement_issues_unique_signed_tickets(): void
     {
         $customer = $this->customer();
         $order = $this->pendingOrderWithItem($customer, quantity: 3);
@@ -352,7 +358,7 @@ class PaymentFlowFeatureTest extends TestCase
         $payment = $order->payments()->first();
 
         $this->actingAs($customer)
-            ->post("/payments/{$payment->id}/settle")
+            ->post("/payments/{$payment->id}/check")
             ->assertRedirect("/orders/{$order->order_code}")
             ->assertSessionHas('success');
 
@@ -382,7 +388,7 @@ class PaymentFlowFeatureTest extends TestCase
         $customer = $this->customer();
         $order = $this->pendingOrderWithItem($customer, quantity: 1);
         $this->actingAs($customer)->pay($order);
-        $this->actingAs($customer)->post("/payments/{$order->payments()->first()->id}/settle");
+        $this->actingAs($customer)->post("/payments/{$order->payments()->first()->id}/check");
 
         $ticket = Ticket::firstOrFail();
         [$ticketCode, $orderId, $orderItemId, $hmac] = explode('.', $ticket->qr_payload);
@@ -400,7 +406,7 @@ class PaymentFlowFeatureTest extends TestCase
         $customer = $this->customer();
         $order = $this->pendingOrderWithItem($customer, quantity: 2);
         $this->actingAs($customer)->pay($order);
-        $this->actingAs($customer)->post("/payments/{$order->payments()->first()->id}/settle");
+        $this->actingAs($customer)->post("/payments/{$order->payments()->first()->id}/check");
 
         $ticketCodes = Ticket::orderBy('id')->pluck('ticket_code');
 
@@ -427,25 +433,6 @@ class PaymentFlowFeatureTest extends TestCase
             ->assertInertia(
                 fn (Assert $page) => $page->where('order.tickets', []),
             );
-    }
-
-    public function test_settle_cannot_be_replayed(): void
-    {
-        $customer = $this->customer();
-        $order = $this->pendingOrderWithItem($customer, quantity: 2);
-        $this->actingAs($customer)->pay($order);
-        $payment = $order->payments()->first();
-
-        $this->actingAs($customer)
-            ->post("/payments/{$payment->id}/settle")
-            ->assertRedirect();
-
-        $this->actingAs($customer)
-            ->post("/payments/{$payment->id}/settle")
-            ->assertRedirect("/orders/{$order->order_code}")
-            ->assertSessionHas('error');
-
-        $this->assertSame(2, Ticket::count());
     }
 
     public function test_customer_can_check_status_and_settle_payment(): void
@@ -494,42 +481,260 @@ class PaymentFlowFeatureTest extends TestCase
             ->assertNotFound();
     }
 
-    public function test_expire_releases_stock_and_marks_order_expired(): void
+    public function test_check_status_reports_pending_without_settling(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer);
+        $this->actingAs($customer)->pay($order);
+        $payment = $order->payments()->first();
+        $this->useMidtransGatewayResponding(['transaction_status' => 'pending', 'fraud_status' => 'accept']);
+
+        $this->actingAs($customer)
+            ->post("/payments/{$payment->id}/check")
+            ->assertRedirect("/orders/{$order->order_code}")
+            ->assertSessionHas('success', 'Status pembayaran saat ini: Menunggu Pembayaran.');
+
+        $this->assertSame(PaymentStatus::Pending->value, $payment->fresh()->payment_status);
+        $this->assertSame(OrderStatus::Pending->value, $order->fresh()->status);
+        $this->assertSame(0, Ticket::count());
+    }
+
+    public function test_check_status_survives_gateway_error(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer);
+        $this->actingAs($customer)->pay($order);
+        $payment = $order->payments()->first();
+        $this->useMidtransGatewayResponding([], 404);
+
+        $this->actingAs($customer)
+            ->post("/payments/{$payment->id}/check")
+            ->assertRedirect("/orders/{$order->order_code}")
+            ->assertSessionHas('error');
+
+        $this->assertSame(PaymentStatus::Pending->value, $payment->fresh()->payment_status);
+        $this->assertSame(OrderStatus::Pending->value, $order->fresh()->status);
+        $this->assertSame(0, Ticket::count());
+    }
+
+    public function test_return_from_gateway_confirms_settlement_and_issues_tickets(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer);
+        $payment = Payment::factory()->create([
+            'order_id' => $order->id,
+            'gross_amount' => $order->grand_total,
+        ]);
+
+        $category = TicketCategory::findOrFail($order->orderItems()->first()->ticket_category_id);
+        $reservedQuantity = $category->available_quantity;
+
+        $this->useMidtransGatewayResponding(['transaction_status' => 'settlement'], 200);
+
+        $this->actingAs($customer)
+            ->get("/payments/return/{$order->order_code}")
+            ->assertRedirect(route('orders.show', $order->order_code))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('payments', [
+            'id' => $payment->id,
+            'payment_status' => PaymentStatus::Settlement->value,
+        ]);
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => OrderStatus::Paid->value,
+        ]);
+        $this->assertSame(2, Ticket::count());
+        // Stock is reserved at order creation, so settling must not deduct twice.
+        $this->assertSame($reservedQuantity, $category->fresh()->available_quantity);
+    }
+
+    public function test_return_from_gateway_expires_a_lapsed_payment(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer);
+        Payment::factory()->create([
+            'order_id' => $order->id,
+            'gross_amount' => $order->grand_total,
+        ]);
+
+        $this->useMidtransGatewayResponding(['transaction_status' => 'expire']);
+
+        $this->actingAs($customer)
+            ->get("/payments/return/{$order->order_code}")
+            ->assertRedirect(route('orders.show', $order->order_code))
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => OrderStatus::Expired->value,
+        ]);
+    }
+
+    public function test_return_from_gateway_keeps_a_still_pending_payment_pending(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer);
+        $payment = Payment::factory()->create([
+            'order_id' => $order->id,
+            'gross_amount' => $order->grand_total,
+        ]);
+
+        $this->useMidtransGatewayResponding(['transaction_status' => 'pending']);
+
+        $this->actingAs($customer)
+            ->get("/payments/return/{$order->order_code}")
+            ->assertRedirect(route('orders.show', $order->order_code));
+
+        $this->assertDatabaseHas('payments', [
+            'id' => $payment->id,
+            'payment_status' => PaymentStatus::Pending->value,
+        ]);
+        $this->assertSame(0, Ticket::count());
+    }
+
+    public function test_return_from_gateway_cannot_touch_another_customers_order(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer);
+        Payment::factory()->create([
+            'order_id' => $order->id,
+            'gross_amount' => $order->grand_total,
+        ]);
+
+        Http::fake();
+
+        $this->actingAs(User::factory()->create())
+            ->get("/payments/return/{$order->order_code}")
+            ->assertNotFound();
+
+        Http::assertNothingSent();
+    }
+
+    public function test_return_from_gateway_ignores_an_already_settled_payment(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer);
+        $payment = Payment::factory()->settlement()->create([
+            'order_id' => $order->id,
+            'gross_amount' => $order->grand_total,
+        ]);
+
+        Http::fake();
+
+        $this->actingAs($customer)
+            ->get("/payments/return/{$order->order_code}")
+            ->assertRedirect(route('orders.show', $order->order_code));
+
+        Http::assertNothingSent();
+        $this->assertDatabaseHas('payments', [
+            'id' => $payment->id,
+            'payment_status' => PaymentStatus::Settlement->value,
+        ]);
+    }
+
+    public function test_return_from_gateway_reports_a_gateway_outage_without_settling(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer);
+        $payment = Payment::factory()->create([
+            'order_id' => $order->id,
+            'gross_amount' => $order->grand_total,
+        ]);
+
+        config(['services.midtrans.server_key' => 'test-server-key']);
+        $this->app->instance(PaymentGatewayInterface::class, $this->app->make(MidtransPaymentDriver::class));
+        Http::fake(['https://api.sandbox.midtrans.com/v2/*' => Http::response([], 500)]);
+
+        $this->actingAs($customer)
+            ->get("/payments/return/{$order->order_code}")
+            ->assertRedirect(route('orders.show', $order->order_code))
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseHas('payments', [
+            'id' => $payment->id,
+            'payment_status' => PaymentStatus::Pending->value,
+        ]);
+        $this->assertSame(0, Ticket::count());
+    }
+
+    private function useMidtransGatewayResponding(array $body, int $status = 200): void
+    {
+        config(['services.midtrans.server_key' => 'test-server-key']);
+        $this->app->instance(PaymentGatewayInterface::class, $this->app->make(MidtransPaymentDriver::class));
+        Http::preventStrayRequests();
+        Http::fake(['https://api.sandbox.midtrans.com/v2/*' => Http::response($body, $status)]);
+    }
+
+    /**
+     * Midtrans serves Snap from the app. subdomain and the v2 REST API from the
+     * api. subdomain only. Sharing one base URL made status and refund 404.
+     */
+    public function test_midtrans_uses_the_api_subdomain_for_v2_calls(): void
+    {
+        config([
+            'services.midtrans.server_key' => 'test-server-key',
+            'services.midtrans.is_production' => false,
+            'services.midtrans.webhook_url' => 'https://soundtix.ngrok-free.app/api/midtrans/webhook',
+        ]);
+        $driver = $this->app->make(MidtransPaymentDriver::class);
+
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer);
+
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://app.sandbox.midtrans.com/snap/v1/transactions' => Http::response([
+                'token' => 'snap-token',
+                'redirect_url' => 'https://app.sandbox.midtrans.com/snap/v1/transactions/token/redirect',
+            ], 201),
+            'https://api.sandbox.midtrans.com/v2/*' => Http::response([
+                'transaction_status' => 'settlement',
+                'refund_status' => 'none',
+            ], 200),
+        ]);
+
+        $payment = $driver->createPayment($order, PaymentType::BankTransfer, 'bca');
+        $driver->checkStatus($payment);
+
+        $requested = Http::recorded()
+            ->map(fn (array $pair) => (string) $pair[0]->url())
+            ->all();
+
+        $this->assertSame([
+            'https://app.sandbox.midtrans.com/snap/v1/transactions',
+            'https://api.sandbox.midtrans.com/v2/'.rawurlencode($payment->transaction_id).'/status',
+        ], $requested);
+    }
+
+    public function test_expiration_releases_stock_and_marks_order_expired(): void
     {
         $customer = $this->customer();
         $order = $this->pendingOrderWithItem($customer, quantity: 4);
         $category = $order->orderItems->first()->ticketCategory;
         $this->actingAs($customer)->pay($order);
-        $payment = $order->payments()->first();
 
-        $this->actingAs($customer)
-            ->post("/payments/{$payment->id}/expire")
-            ->assertRedirect("/orders/{$order->order_code}")
-            ->assertSessionHas('success');
+        $this->assertTrue(app(OrderExpirationService::class)->expire($order));
 
-        $this->assertSame(PaymentStatus::Expire->value, $payment->fresh()->payment_status);
         $this->assertSame(OrderStatus::Expired->value, $order->fresh()->status);
         $this->assertSame(100, $category->fresh()->available_quantity);
         $this->assertSame(0, Ticket::count());
     }
 
-    public function test_expire_cannot_double_release(): void
+    public function test_expiration_cannot_double_release(): void
     {
         $customer = $this->customer();
         $order = $this->pendingOrderWithItem($customer, quantity: 4);
         $category = $order->orderItems->first()->ticketCategory;
         $this->actingAs($customer)->pay($order);
-        $payment = $order->payments()->first();
 
-        $this->actingAs($customer)
-            ->post("/payments/{$payment->id}/expire")
-            ->assertRedirect();
+        $expiration = app(OrderExpirationService::class);
 
-        $this->actingAs($customer)
-            ->post("/payments/{$payment->id}/expire")
-            ->assertRedirect("/orders/{$order->order_code}");
+        $this->assertTrue($expiration->expire($order));
+        $this->assertFalse($expiration->expire($order));
 
         $this->assertSame(100, $category->fresh()->available_quantity);
+        $this->assertSame(0, Ticket::count());
     }
 
     public function test_guest_cannot_pay(): void
@@ -540,6 +745,26 @@ class PaymentFlowFeatureTest extends TestCase
         $this->post("/orders/{$order->order_code}/pay", ['method' => 'qris'])->assertRedirect('/login');
     }
 
+    public function test_customer_cannot_force_settle_or_expire_without_gateway_confirmation(): void
+    {
+        $customer = $this->customer();
+        $order = $this->pendingOrderWithItem($customer, quantity: 2);
+        $category = $order->orderItems->first()->ticketCategory;
+        $this->actingAs($customer)->pay($order);
+        $payment = $order->payments()->first();
+
+        foreach (['settle', 'expire'] as $endpoint) {
+            $this->actingAs($customer)
+                ->post("/payments/{$payment->id}/{$endpoint}")
+                ->assertNotFound();
+        }
+
+        $this->assertSame(PaymentStatus::Pending->value, $payment->fresh()->payment_status);
+        $this->assertSame(OrderStatus::Pending->value, $order->fresh()->status);
+        $this->assertSame(98, $category->fresh()->available_quantity);
+        $this->assertSame(0, Ticket::count());
+    }
+
     public function test_payment_of_another_customer_returns_404(): void
     {
         $owner = $this->customer();
@@ -548,7 +773,7 @@ class PaymentFlowFeatureTest extends TestCase
         $payment = $order->payments()->first();
 
         $this->actingAs($this->customer())
-            ->post("/payments/{$payment->id}/settle")
+            ->post("/payments/{$payment->id}/check")
             ->assertNotFound();
     }
 

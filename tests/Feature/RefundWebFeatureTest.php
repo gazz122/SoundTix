@@ -2,21 +2,32 @@
 
 namespace Tests\Feature;
 
+use App\Enums\EventStatus;
+use App\Enums\PaymentStatus;
 use App\Enums\RefundStatus;
 use App\Enums\TicketStatus;
 use App\Models\Event;
 use App\Models\Order;
+use App\Models\Payment;
 use App\Models\Refund;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\User;
+use App\Services\PaymentGateway\MidtransPaymentDriver;
+use App\Services\PaymentGateway\PaymentGatewayInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class RefundWebFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * @return array{0: User, 1: Order, 2: Payment}
+     */
     private function paidEvent(int $price = 200_000, int $quantity = 2): array
     {
         $event = Event::factory()->published()->create();
@@ -48,77 +59,34 @@ class RefundWebFeatureTest extends TestCase
             ]);
         }
 
+        $payment = Payment::factory()->settlement()->create([
+            'order_id' => $order->id,
+            'gross_amount' => $price * $quantity,
+        ]);
+
         $category->decrement('available_quantity', $quantity);
 
-        return [$customer, $order];
+        return [$customer, $order, $payment];
     }
 
-    public function test_customer_can_request_refund_on_paid_order(): void
+    /**
+     * The default testing gateway is the mock driver, which never talks HTTP.
+     * Refund semantics live in the Midtrans driver, so bind the real one.
+     */
+    private function useMidtransGateway(array $patterns): void
+    {
+        config(['services.midtrans.server_key' => 'test-server-key']);
+        $this->app->instance(PaymentGatewayInterface::class, $this->app->make(MidtransPaymentDriver::class));
+        Http::fake($patterns);
+    }
+
+    public function test_customer_can_no_longer_request_a_refund(): void
     {
         [$customer, $order] = $this->paidEvent();
 
         $this->actingAs($customer)
             ->post("/orders/{$order->order_code}/refund", ['reason' => 'Tidak bisa hadir.'])
-            ->assertRedirect("/orders/{$order->order_code}")
-            ->assertSessionHas('success');
-
-        $this->assertDatabaseHas('refunds', [
-            'order_id' => $order->id,
-            'amount' => '400000.00',
-            'status' => RefundStatus::Pending->value,
-            'reason' => 'Tidak bisa hadir.',
-        ]);
-    }
-
-    public function test_customer_cannot_request_refund_on_non_paid_order(): void
-    {
-        $customer = User::factory()->create();
-        $order = Order::factory()->create([
-            'customer_id' => $customer->id,
-            'total_amount' => 100_000,
-            'grand_total' => 100_000,
-        ]);
-
-        $this->actingAs($customer)
-            ->post("/orders/{$order->order_code}/refund", ['reason' => 'Tidak jadi.'])
-            ->assertRedirect("/orders/{$order->order_code}")
-            ->assertSessionHas('error');
-
-        $this->assertDatabaseCount('refunds', 0);
-    }
-
-    public function test_customer_cannot_request_duplicate_refund(): void
-    {
-        [$customer, $order] = $this->paidEvent();
-        Refund::factory()->pending()->create(['order_id' => $order->id]);
-
-        $this->actingAs($customer)
-            ->post("/orders/{$order->order_code}/refund", ['reason' => 'Lagi-lagi.'])
-            ->assertRedirect("/orders/{$order->order_code}")
-            ->assertSessionHas('error');
-
-        $this->assertDatabaseCount('refunds', 1);
-    }
-
-    public function test_customer_cannot_refund_another_users_order(): void
-    {
-        [$customer, $order] = $this->paidEvent();
-        $other = User::factory()->create();
-
-        $this->actingAs($other)
-            ->post("/orders/{$order->order_code}/refund", ['reason' => 'Curi.'])
             ->assertNotFound();
-
-        $this->assertDatabaseCount('refunds', 0);
-    }
-
-    public function test_refund_requires_reason(): void
-    {
-        [$customer, $order] = $this->paidEvent();
-
-        $this->actingAs($customer)
-            ->post("/orders/{$order->order_code}/refund", ['reason' => ''])
-            ->assertSessionHasErrors('reason');
 
         $this->assertDatabaseCount('refunds', 0);
     }
@@ -129,7 +97,7 @@ class RefundWebFeatureTest extends TestCase
         $refund = Refund::factory()->pending()->create([
             'order_id' => $order->id,
             'amount' => 400_000,
-            'reason' => 'Tidak bisa hadir.',
+            'reason' => 'Event dibatalkan.',
         ]);
         $admin = User::factory()->admin()->create();
 
@@ -143,53 +111,218 @@ class RefundWebFeatureTest extends TestCase
                 ->where('refunds.0.order_code', $order->order_code));
     }
 
-    public function test_admin_approve_completes_refund_and_cancels_tickets(): void
+    public function test_pending_cancellation_exposes_the_refundable_total(): void
     {
-        [$customer, $order] = $this->paidEvent(quantity: 2);
+        [$customer, $order] = $this->paidEvent(price: 200_000, quantity: 2);
+        $event = $order->orderItems->first()->ticketCategory->event;
+        $admin = User::factory()->admin()->create();
+
+        $event->update([
+            'status' => EventStatus::PendingCancellation->value,
+            'cancellation_reason' => 'Hujan deras.',
+        ]);
+
+        $this->actingAs($admin)->get('/admin/refunds')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Admin/Refunds/Index')
+                ->has('cancellations', 1)
+                ->where('cancellations.0.id', $event->id)
+                ->where('cancellations.0.paid_orders_count', 1)
+                ->where('cancellations.0.refund_total', 400_000));
+    }
+
+    public function test_refunds_page_survives_a_soft_deleted_customer(): void
+    {
+        [$customer, $order] = $this->paidEvent();
+        Refund::factory()->pending()->create(['order_id' => $order->id, 'amount' => 400_000]);
+        $customer->delete();
+
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->get('/admin/refunds')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Admin/Refunds/Index')
+                ->has('refunds', 1)
+                ->where('refunds.0.customer_name', $customer->name)
+                ->where('refunds.0.customer_email', $customer->email));
+    }
+
+    public function test_admin_can_complete_a_refund_with_the_destination_account(): void
+    {
+        [$customer, $order, $payment] = $this->paidEvent();
         $refund = Refund::factory()->pending()->create([
             'order_id' => $order->id,
+            'payment_id' => $payment->id,
             'amount' => 400_000,
         ]);
         $admin = User::factory()->admin()->create();
-        $item = $order->orderItems()->first();
-        $category = $item->ticketCategory;
-        $before = $category->fresh()->available_quantity;
 
         $this->actingAs($admin)
-            ->post("/admin/refunds/{$refund->id}/approve")
+            ->post("/admin/refunds/{$refund->id}/complete", [
+                'bank_name' => 'BCA',
+                'account_number' => '1234567890',
+                'account_holder_name' => 'Budi Santoso',
+                'notes' => 'Transfer via BCA mobile banking.',
+            ])
             ->assertRedirect(route('admin.refunds.index'))
             ->assertSessionHas('success');
 
         $this->assertDatabaseHas('refunds', [
             'id' => $refund->id,
             'status' => RefundStatus::Completed->value,
+            'bank_name' => 'BCA',
+            'account_number' => '1234567890',
+            'account_holder_name' => 'Budi Santoso',
+            'notes' => 'Transfer via BCA mobile banking.',
         ]);
-        $this->assertDatabaseMissing('tickets', [
-            'order_item_id' => $item->id,
-            'status' => TicketStatus::Active->value,
-        ]);
-        $this->assertSame($before + 2, $category->fresh()->available_quantity);
-        $this->assertSame(2, Ticket::where('order_item_id', $item->id)->where('status', TicketStatus::Cancelled->value)->count());
+        $this->assertNotNull($refund->fresh()->processed_at);
     }
 
-    public function test_admin_cannot_approve_already_completed_refund(): void
+    public function test_admin_can_attach_a_proof_of_transfer_when_completing(): void
     {
-        [$customer, $order] = $this->paidEvent();
-        $refund = Refund::factory()->completed()->create([
+        Storage::fake('public');
+
+        [$customer, $order, $payment] = $this->paidEvent();
+        $refund = Refund::factory()->pending()->create([
             'order_id' => $order->id,
+            'payment_id' => $payment->id,
             'amount' => 400_000,
         ]);
         $admin = User::factory()->admin()->create();
 
         $this->actingAs($admin)
-            ->post("/admin/refunds/{$refund->id}/approve")
+            ->post("/admin/refunds/{$refund->id}/complete", [
+                'bank_name' => 'Mandiri',
+                'account_number' => '9876543210',
+                'account_holder_name' => 'Siti Aminah',
+                'proof_of_transfer' => UploadedFile::fake()->image('bukti.jpg'),
+            ])
+            ->assertRedirect(route('admin.refunds.index'))
+            ->assertSessionHas('success');
+
+        $path = (string) $refund->fresh()->proof_of_transfer;
+
+        $this->assertNotSame('', $path);
+        Storage::disk('public')->assertExists($path);
+    }
+
+    public function test_completing_a_refund_requires_the_destination_account(): void
+    {
+        [$customer, $order, $payment] = $this->paidEvent();
+        $refund = Refund::factory()->pending()->create([
+            'order_id' => $order->id,
+            'payment_id' => $payment->id,
+            'amount' => 400_000,
+        ]);
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->post("/admin/refunds/{$refund->id}/complete", [])
+            ->assertSessionHasErrors(['bank_name', 'account_number', 'account_holder_name']);
+
+        $this->assertDatabaseHas('refunds', [
+            'id' => $refund->id,
+            'status' => RefundStatus::Pending->value,
+        ]);
+    }
+
+    public function test_completing_a_refund_rejects_a_non_numeric_account_number(): void
+    {
+        [$customer, $order, $payment] = $this->paidEvent();
+        $refund = Refund::factory()->pending()->create([
+            'order_id' => $order->id,
+            'payment_id' => $payment->id,
+            'amount' => 400_000,
+        ]);
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->post("/admin/refunds/{$refund->id}/complete", [
+                'bank_name' => 'BRI',
+                'account_number' => '1234-ABCD',
+                'account_holder_name' => 'Andi',
+            ])
+            ->assertSessionHasErrors('account_number');
+
+        $this->assertDatabaseHas('refunds', [
+            'id' => $refund->id,
+            'status' => RefundStatus::Pending->value,
+        ]);
+    }
+
+    public function test_customer_cannot_complete_a_refund(): void
+    {
+        [$customer, $order, $payment] = $this->paidEvent();
+        $refund = Refund::factory()->pending()->create([
+            'order_id' => $order->id,
+            'payment_id' => $payment->id,
+            'amount' => 400_000,
+        ]);
+
+        $this->actingAs($customer)
+            ->post("/admin/refunds/{$refund->id}/complete", [
+                'bank_name' => 'BCA',
+                'account_number' => '1234567890',
+                'account_holder_name' => 'Budi Santoso',
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('refunds', [
+            'id' => $refund->id,
+            'status' => RefundStatus::Pending->value,
+        ]);
+    }
+
+    public function test_admin_cannot_complete_an_already_completed_refund(): void
+    {
+        [$customer, $order, $payment] = $this->paidEvent();
+        $refund = Refund::factory()->completed()->create([
+            'order_id' => $order->id,
+            'payment_id' => $payment->id,
+            'amount' => 400_000,
+            'account_number' => '1111111111',
+        ]);
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->post("/admin/refunds/{$refund->id}/complete", [
+                'bank_name' => 'Mandiri',
+                'account_number' => '2222222222',
+                'account_holder_name' => 'Siti Aminah',
+            ])
             ->assertRedirect(route('admin.refunds.index'))
             ->assertSessionHas('error');
 
         $this->assertDatabaseHas('refunds', [
             'id' => $refund->id,
-            'status' => RefundStatus::Completed->value,
+            'account_number' => '1111111111',
         ]);
+    }
+
+    public function test_refunds_page_exposes_the_recorded_destination_account(): void
+    {
+        [$customer, $order, $payment] = $this->paidEvent();
+        $refund = Refund::factory()->completed()->create([
+            'order_id' => $order->id,
+            'payment_id' => $payment->id,
+            'amount' => 400_000,
+            'bank_name' => 'BCA',
+            'account_number' => '1234567890',
+            'account_holder_name' => 'Budi Santoso',
+        ]);
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->get('/admin/refunds')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('refunds.0.bank_name', 'BCA')
+                ->where('refunds.0.account_number', '1234567890')
+                ->where('refunds.0.account_holder_name', 'Budi Santoso')
+                ->where('refunds.0.can_complete', false)
+            );
     }
 
     public function test_customer_cannot_access_admin_refunds_page(): void
@@ -197,5 +330,32 @@ class RefundWebFeatureTest extends TestCase
         $this->actingAs(User::factory()->create())
             ->get('/admin/refunds')
             ->assertForbidden();
+    }
+
+    public function test_webhook_persists_the_midtrans_transaction_id(): void
+    {
+        [$customer, $order, $payment] = $this->paidEvent();
+
+        $this->useMidtransGateway([
+            'https://api.sandbox.midtrans.com/v2/*' => Http::response(['transaction_status' => 'settlement'], 200),
+        ]);
+
+        $signature = hash('sha512', $payment->transaction_id.'200'.'400000.00'.'test-server-key');
+
+        $this->postJson('/api/midtrans/webhook', [
+            'order_id' => $payment->transaction_id,
+            'transaction_id' => 'midtrans-abc-123',
+            'status_code' => '200',
+            'gross_amount' => '400000.00',
+            'transaction_status' => 'settlement',
+            'fraud_status' => 'accept',
+            'signature_key' => $signature,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('payments', [
+            'id' => $payment->id,
+            'midtrans_transaction_id' => 'midtrans-abc-123',
+            'payment_status' => PaymentStatus::Settlement->value,
+        ]);
     }
 }

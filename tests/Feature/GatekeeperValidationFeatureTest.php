@@ -54,7 +54,7 @@ class GatekeeperValidationFeatureTest extends TestCase
         $category->decrement('available_quantity');
 
         $this->actingAs($customer)->post("/orders/{$order->order_code}/pay", ['method' => 'bank_transfer', 'bank' => 'bca']);
-        $this->actingAs($customer)->post("/payments/{$order->payments()->first()->id}/settle");
+        $this->actingAs($customer)->post("/payments/{$order->payments()->first()->id}/check");
 
         return Ticket::firstOrFail();
     }
@@ -72,6 +72,36 @@ class GatekeeperValidationFeatureTest extends TestCase
             ->get('/dashboard/scan')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->component('Gatekeeper/Scanner'));
+    }
+
+    public function test_scanner_schedule_includes_multi_day_gate_hours(): void
+    {
+        $event = Event::factory()->published()->create([
+            'event_date' => '2026-10-07',
+            'duration_type' => 'multi_day',
+            'total_days' => 3,
+            'open_gate' => null,
+            'close_gate' => null,
+        ]);
+        $event->eventDays()->createMany([
+            ['day_number' => 1, 'date' => '2026-10-07'],
+            ['day_number' => 2, 'date' => '2026-10-08'],
+            [
+                'day_number' => 3,
+                'date' => '2026-10-09',
+                'open_gate' => '2026-10-09 09:00:00',
+                'close_gate' => '2026-10-09 15:00:00',
+            ],
+        ]);
+
+        $this->actingAs($this->gatekeeper())
+            ->get('/dashboard/scan')
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('rundowns.0.id', $event->id)
+                ->where('rundowns.0.duration_type', 'multi_day')
+                ->where('rundowns.0.event_days.2.date', '09 Oct 2026')
+                ->where('rundowns.0.event_days.2.open_gate', '16:00')
+                ->where('rundowns.0.event_days.2.close_gate', '22:00'));
     }
 
     public function test_scanner_page_reports_scanned_and_capacity_counts(): void

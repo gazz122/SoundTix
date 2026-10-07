@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" width="1200" height="400" role="img" aria-label="Tiket konser digital SoundTix">
+    <rect width="1200" height="400" fill="#eef2ff"/>
+    <circle cx="1120" cy="40" r="170" fill="#e0e7ff"/>
+    <circle cx="1060" cy="380" r="140" fill="#c7d2fe"/>
+    <circle cx="60" cy="380" r="110" fill="#e0e7ff"/>
+    <text x="120" y="170" font-family="system-ui, sans-serif" font-size="58" font-weight="700" fill="#1e1b4b">Tiket konser digital</text>
+    <text x="120" y="222" font-family="system-ui, sans-serif" font-size="30" fill="#4338ca">Beli, simpan di HP, scan QR Code saat masuk venue.</text>
+    <rect x="120" y="252" width="250" height="56" rx="28" fill="#4f46e5"/>
+    <text x="245" y="289" text-anchor="middle" font-family="system-ui, sans-serif" font-size="24" font-weight="600" fill="#ffffff">Cari Event</text>
+</svg>

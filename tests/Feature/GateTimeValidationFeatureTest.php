@@ -59,7 +59,7 @@ class GateTimeValidationFeatureTest extends TestCase
         $category->decrement('available_quantity');
 
         $this->actingAs($customer)->post("/orders/{$order->order_code}/pay", ['method' => 'bank_transfer', 'bank' => 'bca']);
-        $this->actingAs($customer)->post("/payments/{$order->payments()->first()->id}/settle");
+        $this->actingAs($customer)->post("/payments/{$order->payments()->first()->id}/check");
 
         return $order->orderItems->first()->tickets->first();
     }

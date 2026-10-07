@@ -183,15 +183,15 @@ export default function Form({ event }) {
                         <>
                             <div className="grid gap-4 sm:grid-cols-3">
                                 <Field label="Tanggal Event" type="date" value={data.event_date} onChange={(value) => setData('event_date', value)} error={errors.event_date} />
-                                <Field label="Jam Mulai" type="time" value={data.start_time} onChange={(value) => setData('start_time', value)} error={errors.start_time} />
-                                <Field label="Jam Selesai (opsional)" type="time" value={data.end_time} onChange={(value) => setData('end_time', value)} error={errors.end_time} />
+                                <Field label="Jam Mulai Acara" type="time" value={data.start_time} onChange={(value) => setData('start_time', value)} error={errors.start_time} />
+                                <Field label="Jam Selesai Acara (opsional)" type="time" value={data.end_time} onChange={(value) => setData('end_time', value)} error={errors.end_time} />
                             </div>
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <Field label="Jam Buka Pintu (opsional)" type="datetime-local" value={data.open_gate} onChange={(value) => setData('open_gate', value)} error={errors.open_gate} />
                                 <Field label="Jam Tutup Pintu (opsional)" type="datetime-local" value={data.close_gate} onChange={(value) => setData('close_gate', value)} error={errors.close_gate} />
                             </div>
                             <p className="text-xs text-slate-400">
-                                Scan tiket hanya diterima di luar rentang ini. Waktu dalam WIB.
+                                Jam mulai acara berbeda dari jam pintu. Scan tiket hanya diterima setelah pintu dibuka dan sebelum pintu ditutup. Waktu dalam WIB.
                             </p>
                         </>
                     ) : (
@@ -245,7 +245,7 @@ export default function Form({ event }) {
                                 ))}
                             </div>
                             <p className="text-xs text-slate-400">
-                                Tanggal & waktu dalam WIB. Scan tiket hanya diterima di luar rentang buka-tutup pintu tiap hari.
+                                Jam mulai acara berbeda dari jam pintu. Atur jam buka/tutup pintu tiap hari; scan tiket hanya diterima dalam rentang tersebut. Tanggal & waktu dalam WIB.
                             </p>
                         </>
                     )}

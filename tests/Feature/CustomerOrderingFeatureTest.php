@@ -226,6 +226,89 @@ class CustomerOrderingFeatureTest extends TestCase
             );
     }
 
+    public function test_multi_day_ticket_shows_its_selected_day_and_date(): void
+    {
+        $event = Event::factory()->published()->create([
+            'event_date' => '2026-10-07',
+            'duration_type' => 'multi_day',
+            'total_days' => 3,
+        ]);
+        $event->eventDays()->createMany([
+            ['day_number' => 1, 'date' => '2026-10-07'],
+            ['day_number' => 2, 'date' => '2026-10-08'],
+            [
+                'day_number' => 3,
+                'date' => '2026-10-09',
+                'open_gate' => '2026-10-09 09:00:00',
+                'close_gate' => '2026-10-09 15:00:00',
+            ],
+        ]);
+        $day = $event->eventDays()->where('day_number', 3)->firstOrFail();
+        $category = $event->ticketCategories()->create([
+            'name' => 'Reguler',
+            'price' => 200_000,
+            'total_quantity' => 20,
+            'available_quantity' => 20,
+            'max_per_order' => 5,
+            'access_type' => 'SINGLE_DAY',
+            'event_day_id' => $day->id,
+        ]);
+
+        $this->get("/events/{$event->slug}")
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->component('Events/Show')
+                    ->where('event.event_days.2.date', '2026-10-09')
+                    ->where('event.event_days.2.open_gate', '2026-10-09 16:00')
+                    ->where('event.event_days.2.close_gate', '2026-10-09 22:00')
+                    ->where('event.ticket_categories.0.access_type', 'SINGLE_DAY')
+                    ->where('event.ticket_categories.0.event_day.day_number', 3)
+                    ->where('event.ticket_categories.0.event_day.date', '2026-10-09'),
+            );
+    }
+
+    public function test_multi_day_order_uses_selected_day_date_in_order_details(): void
+    {
+        $customer = $this->customer();
+        $event = Event::factory()->published()->create([
+            'event_date' => '2026-10-07',
+            'duration_type' => 'multi_day',
+            'total_days' => 3,
+        ]);
+        $event->eventDays()->createMany([
+            ['day_number' => 1, 'date' => '2026-10-07'],
+            ['day_number' => 2, 'date' => '2026-10-08'],
+            ['day_number' => 3, 'date' => '2026-10-09'],
+        ]);
+        $day = $event->eventDays()->where('day_number', 3)->firstOrFail();
+        $category = $event->ticketCategories()->create([
+            'name' => 'Reguler',
+            'price' => 200_000,
+            'total_quantity' => 20,
+            'available_quantity' => 20,
+            'max_per_order' => 5,
+            'access_type' => 'SINGLE_DAY',
+            'event_day_id' => $day->id,
+        ]);
+
+        $this->actingAs($customer)
+            ->post("/events/{$event->slug}/order", [
+                'items' => [['category_id' => $category->id, 'quantity' => 1]],
+            ])
+            ->assertRedirectContains('/orders/');
+
+        $order = Order::query()->firstOrFail();
+
+        $this->actingAs($customer)
+            ->get("/orders/{$order->order_code}")
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->component('Orders/Show')
+                    ->where('order.items.0.event.event_date', '2026-10-09')
+                    ->where('order.items.0.event.ticket_day_label', 'Day 3'),
+            );
+    }
+
     public function test_order_show_renders_items_and_total(): void
     {
         $customer = $this->customer();

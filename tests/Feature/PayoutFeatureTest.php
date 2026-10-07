@@ -174,7 +174,7 @@ class PayoutFeatureTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_admin_can_list_and_approve_payout(): void
+    public function test_admin_can_list_payouts(): void
     {
         $admin = User::factory()->admin()->create();
         [$organizer, $event] = $this->completedEventWithRevenue();
@@ -186,18 +186,24 @@ class PayoutFeatureTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'payouts')
             ->assertJsonPath('payouts.0.id', $payout->id);
+    }
 
-        $this->postJson("/api/v1/admin/payouts/{$payout->id}/approve")
-            ->assertOk()
-            ->assertJsonPath('approved', true)
-            ->assertJsonPath('payout.status', 'completed');
+    public function test_payout_cannot_be_marked_completed_without_transfer_proof(): void
+    {
+        $admin = User::factory()->admin()->create();
+        [$organizer, $event] = $this->completedEventWithRevenue();
+        $payout = Payout::factory()->create(['event_id' => $event->id, 'organizer_id' => $organizer->id]);
+
+        Sanctum::actingAs($admin);
+
+        // There is no approval shortcut: money is only marked sent once an
+        // admin transfers it and uploads the proof.
+        $this->postJson("/api/v1/admin/payouts/{$payout->id}/approve")->assertNotFound();
 
         $this->assertDatabaseHas('payouts', [
             'id' => $payout->id,
-            'status' => 'completed',
-            'processed_by' => $admin->id,
+            'status' => 'pending',
         ]);
-        $this->assertNotNull($payout->fresh()->processed_at);
     }
 
     public function test_payout_is_available_from_event_and_organizer_relationships(): void
@@ -207,18 +213,6 @@ class PayoutFeatureTest extends TestCase
 
         $this->assertTrue($event->payouts->contains($payout));
         $this->assertTrue($organizer->payouts->contains($payout));
-    }
-
-    public function test_admin_cannot_approve_non_pending_payout(): void
-    {
-        $admin = User::factory()->admin()->create();
-        [$organizer, $event] = $this->completedEventWithRevenue();
-        $payout = Payout::factory()->completed()->create(['event_id' => $event->id, 'organizer_id' => $organizer->id]);
-
-        Sanctum::actingAs($admin);
-
-        $this->postJson("/api/v1/admin/payouts/{$payout->id}/approve")
-            ->assertStatus(422);
     }
 
     public function test_organizer_cannot_access_admin_payouts(): void

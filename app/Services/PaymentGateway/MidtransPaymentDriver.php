@@ -32,14 +32,20 @@ class MidtransPaymentDriver implements PaymentGatewayInterface
                 'email' => $order->customer?->email,
             ],
             'callbacks' => [
-                'finish' => route('orders.show', $order->order_code),
+                // The finish URL confirms the payment with the gateway so the
+                // customer does not have to wait for the webhook to arrive.
+                'finish' => route('payments.return', $order->order_code),
                 'unfinish' => route('orders.show', $order->order_code),
                 'error' => route('orders.show', $order->order_code),
             ],
-            'enabled_payments' => $method === PaymentType::Qris ? ['qris'] : ['bank_transfer'],
         ];
 
+        // Only narrow the channels when the buyer explicitly picked a bank.
+        // A hardcoded allowlist here makes Snap show "No payment channels
+        // available" whenever those keys are not active on the merchant
+        // dashboard, so the default is to let Midtrans offer everything enabled.
         if ($method === PaymentType::BankTransfer && $bank !== null) {
+            $params['enabled_payments'] = ['bank_transfer'];
             $params['bank_transfer'] = ['bank' => $bank];
         }
 
@@ -71,14 +77,7 @@ class MidtransPaymentDriver implements PaymentGatewayInterface
 
     public function checkStatus(Payment $payment): PaymentStatus
     {
-        $response = $this->client()
-            ->get($this->baseUrl().'/v2/'.rawurlencode($payment->transaction_id).'/status')
-            ->throw()
-            ->json();
-
-        if (! is_array($response)) {
-            throw new UnexpectedValueException('Midtrans returned an invalid transaction status response.');
-        }
+        $response = $this->statusResponse($payment);
 
         return match ($response['transaction_status'] ?? null) {
             'settlement' => PaymentStatus::Settlement,
@@ -92,6 +91,23 @@ class MidtransPaymentDriver implements PaymentGatewayInterface
             'expire' => PaymentStatus::Expire,
             default => PaymentStatus::from($payment->payment_status),
         };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function statusResponse(Payment $payment): array
+    {
+        $response = $this->client()
+            ->get($this->apiUrl().'/v2/'.rawurlencode($payment->transaction_id).'/status')
+            ->throw()
+            ->json();
+
+        if (! is_array($response)) {
+            throw new UnexpectedValueException('Midtrans returned an invalid transaction status response.');
+        }
+
+        return $response;
     }
 
     public function process(Payment $payment, PaymentStatus $result): void
@@ -112,10 +128,27 @@ class MidtransPaymentDriver implements PaymentGatewayInterface
             ->timeout(15);
     }
 
+    /** Snap host. */
     private function baseUrl(): string
     {
-        return filter_var(config('services.midtrans.is_production'), FILTER_VALIDATE_BOOL)
+        return $this->isProduction()
             ? 'https://app.midtrans.com'
             : 'https://app.sandbox.midtrans.com';
+    }
+
+    /**
+     * REST host. Midtrans serves /v2/* only from the api. subdomain, so the
+     * status and refund calls must not reuse the Snap base URL or they 404.
+     */
+    private function apiUrl(): string
+    {
+        return $this->isProduction()
+            ? 'https://api.midtrans.com'
+            : 'https://api.sandbox.midtrans.com';
+    }
+
+    private function isProduction(): bool
+    {
+        return filter_var(config('services.midtrans.is_production'), FILTER_VALIDATE_BOOL);
     }
 }

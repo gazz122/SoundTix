@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\PaymentType;
-use App\Enums\RefundStatus;
 use App\Enums\TicketStatus;
 use App\Models\Event;
 use App\Models\Order;
@@ -106,44 +105,6 @@ class OrderController extends Controller
         });
 
         return redirect()->route('orders.show', $order->order_code)->with('success', 'Pesanan dibatalkan dan stok tiket dikembalikan.');
-    }
-
-    public function refund(Request $request, Order $order): RedirectResponse
-    {
-        $order = $this->guardOwned($request, $order);
-
-        if ($order->status !== OrderStatus::Paid->value) {
-            return redirect()->route('orders.show', $order->order_code)->with(
-                'error',
-                'Hanya pesanan yang sudah lunas yang dapat diajukan refund.',
-            );
-        }
-
-        $hasActiveRefund = $order->refunds()
-            ->whereIn('status', [RefundStatus::Pending->value, RefundStatus::Completed->value])
-            ->exists();
-
-        if ($hasActiveRefund) {
-            return redirect()->route('orders.show', $order->order_code)->with(
-                'error',
-                'Refund untuk pesanan ini sudah diajukan.',
-            );
-        }
-
-        $data = $request->validate([
-            'reason' => ['required', 'string', 'max:255'],
-        ]);
-
-        $order->refunds()->create([
-            'amount' => $order->grand_total,
-            'status' => RefundStatus::Pending->value,
-            'reason' => $data['reason'],
-        ]);
-
-        return redirect()->route('orders.show', $order->order_code)->with(
-            'success',
-            'Pengajuan refund berhasil dikirim dan menunggu persetujuan admin.',
-        );
     }
 
     private function guardOwned(Request $request, Order $order): Order
@@ -266,7 +227,8 @@ class OrderController extends Controller
                 'id' => $item->ticketCategory->event->id,
                 'title' => $item->ticketCategory->event->title,
                 'slug' => $item->ticketCategory->event->slug,
-                'event_date' => $item->ticketCategory->event->event_date?->format('Y-m-d'),
+                'event_date' => $this->ticketEventDate($item->ticketCategory),
+                'ticket_day_label' => $this->ticketDayLabel($item->ticketCategory),
             ] : null,
         ])->values()->all();
 
@@ -290,7 +252,8 @@ class OrderController extends Controller
                         'qr_payload' => $ticket->qr_payload,
                         'category' => $item->ticketCategory->name,
                         'event_title' => $item->ticketCategory->event?->title,
-                        'event_date' => $item->ticketCategory->event?->event_date?->format('Y-m-d'),
+                        'event_date' => $this->ticketEventDate($item->ticketCategory),
+                        'ticket_day_label' => $this->ticketDayLabel($item->ticketCategory),
                         'venue' => $item->ticketCategory->event
                             ? sprintf('%s, %s', $item->ticketCategory->event->venue_name, $item->ticketCategory->event->city)
                             : null,
@@ -329,5 +292,26 @@ class OrderController extends Controller
                 ])
                 ->all(),
         ];
+    }
+
+    private function ticketEventDate(TicketCategory $category): ?string
+    {
+        $eventDate = $category->access_type === 'SINGLE_DAY'
+            ? $category->eventDay?->date
+            : $category->event?->event_date;
+
+        return $eventDate?->format('Y-m-d');
+    }
+
+    private function ticketDayLabel(TicketCategory $category): ?string
+    {
+        if ($category->access_type === 'SINGLE_DAY' && $category->eventDay !== null) {
+            return sprintf('Day %d', $category->eventDay->day_number);
+        }
+
+        return $category->access_type === 'ALL_DAYS'
+            && $category->event?->duration_type === 'multi_day'
+            ? 'Semua Hari'
+            : null;
     }
 }

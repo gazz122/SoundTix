@@ -7,6 +7,7 @@ use App\Enums\TicketStatus;
 use App\Models\Event;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Payment;
 use App\Models\Refund;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
@@ -122,7 +123,7 @@ class EventCancellationFeatureTest extends TestCase
             'order_id' => $order->id,
             'amount' => 400_000,
             'reason' => 'Event dibatalkan: Artis berhalangan hadir.',
-            'status' => RefundStatus::Completed->value,
+            'status' => RefundStatus::Pending->value,
         ]);
         $this->assertDatabaseHas('tickets', [
             'order_item_id' => $item->id,
@@ -199,7 +200,29 @@ class EventCancellationFeatureTest extends TestCase
             'total_quantity' => 100,
             'available_quantity' => 100,
         ]);
-        $customer = User::factory()->create();
+        [$customer, $order] = $this->paidOrderFor($event, $organizer, $price, $quantity, $category);
+        $item = $order->orderItems()->firstOrFail();
+
+        return [$organizer, $event, $customer, $order, $category, $item];
+    }
+
+    /**
+     * @return array{0: User, 1: Order}
+     */
+    private function paidOrderFor(
+        Event $event,
+        User $customer,
+        int $price = 200_000,
+        int $quantity = 2,
+        ?TicketCategory $category = null,
+    ): array {
+        $category ??= TicketCategory::factory()->create([
+            'event_id' => $event->id,
+            'price' => $price,
+            'total_quantity' => 100,
+            'available_quantity' => 100,
+        ]);
+
         $order = Order::factory()->paid()->create([
             'customer_id' => $customer->id,
             'total_amount' => $price * $quantity,
@@ -221,8 +244,13 @@ class EventCancellationFeatureTest extends TestCase
             ]);
         }
 
+        Payment::factory()->settlement()->create([
+            'order_id' => $order->id,
+            'gross_amount' => $price * $quantity,
+        ]);
+
         $category->decrement('available_quantity', $quantity);
 
-        return [$organizer, $event, $customer, $order, $category, $item];
+        return [$customer, $order];
     }
 }
