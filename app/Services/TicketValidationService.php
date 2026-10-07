@@ -33,7 +33,29 @@ class TicketValidationService
             return $this->result('invalid', 'Tiket tidak ditemukan di sistem SoundTix.');
         }
 
-        $eventDay = $this->todayEventDay($ticket);
+        $ticketCategory = $ticket->orderItem?->ticketCategory;
+
+        if ($ticketCategory?->access_type === 'SINGLE_DAY') {
+            $eventDay = $ticketCategory->eventDay;
+
+            if ($eventDay === null || $eventDay->event_id !== $ticketCategory->event_id) {
+                return $this->result('no_event_day', 'Hari tiket ini tidak terdaftar pada event.', $ticket);
+            }
+
+            if ($eventDay->date->toDateString() !== today()->toDateString()) {
+                return $this->result(
+                    'wrong_day',
+                    sprintf(
+                        'Tiket ini hanya berlaku untuk Day %d pada %s.',
+                        $eventDay->day_number,
+                        $eventDay->date->format('d M Y'),
+                    ),
+                    $ticket,
+                );
+            }
+        } else {
+            $eventDay = $this->todayEventDay($ticket);
+        }
 
         if ($eventDay === null) {
             return $this->result('no_event_day', 'Tidak ada jadwal event untuk hari ini.', $ticket);

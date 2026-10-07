@@ -19,7 +19,7 @@ class TicketValidationApiFeatureTest extends TestCase
         return User::factory()->gatekeeper()->create();
     }
 
-    private function paidTicketFor(Event $event): Ticket
+    private function paidTicketFor(Event $event, array $categoryOverrides = []): Ticket
     {
         $customer = User::factory()->create();
         $category = $event->ticketCategories()->create([
@@ -28,6 +28,7 @@ class TicketValidationApiFeatureTest extends TestCase
             'total_quantity' => 100,
             'available_quantity' => 100,
             'max_per_order' => 5,
+            ...$categoryOverrides,
         ]);
 
         $order = Order::factory()->create([
@@ -187,5 +188,49 @@ class TicketValidationApiFeatureTest extends TestCase
 
         $this->assertSame('active', $ticket->fresh()->status);
         $this->assertSame(2, $ticket->fresh()->ticketScans()->count());
+    }
+
+    public function test_single_day_ticket_cannot_be_scanned_before_its_assigned_day(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-10-07 12:00:00'));
+
+        try {
+            $event = Event::factory()->published()->create([
+                'event_date' => '2026-10-07',
+                'duration_type' => 'multi_day',
+                'total_days' => 2,
+            ]);
+            $event->eventDays()->createMany([
+                ['day_number' => 1, 'date' => '2026-10-07'],
+                ['day_number' => 2, 'date' => '2026-10-08'],
+            ]);
+            $dayTwo = $event->eventDays()->where('day_number', 2)->firstOrFail();
+            $ticket = $this->paidTicketFor($event, [
+                'access_type' => 'SINGLE_DAY',
+                'event_day_id' => $dayTwo->id,
+            ]);
+            $gatekeeper = $this->gatekeeper();
+
+            $this->actingAs($gatekeeper, 'sanctum')
+                ->postJson('/api/v1/tickets/validate', ['payload' => $ticket->qr_payload])
+                ->assertOk()
+                ->assertJsonPath('status', 'wrong_day')
+                ->assertJsonPath('message', 'Tiket ini hanya berlaku untuk Day 2 pada 08 Oct 2026.');
+
+            $this->assertSame(0, $ticket->fresh()->ticketScans()->count());
+
+            Carbon::setTestNow(Carbon::parse('2026-10-08 12:00:00'));
+
+            $this->actingAs($gatekeeper, 'sanctum')
+                ->postJson('/api/v1/tickets/validate', ['payload' => $ticket->qr_payload])
+                ->assertOk()
+                ->assertJsonPath('status', 'success')
+                ->assertJsonPath('message', 'Tiket Valid! Silakan masuk untuk Day 2.');
+
+            $this->assertSame(1, $ticket->fresh()->ticketScans()->count());
+            $this->assertSame($dayTwo->id, $ticket->fresh()->ticketScans()->first()->event_day_id);
+        } finally {
+            Carbon::setTestNow(null);
+        }
     }
 }
