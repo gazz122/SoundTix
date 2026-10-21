@@ -51,7 +51,7 @@ export default function Index({ users, filters }) {
 
             <div className="bg-white border border-slate-200/80 rounded-xl shadow-sm p-4">
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
-                    <div className="lg:col-span-7">
+                    <div className="lg:col-span-6">
                         <label className="block">
                             <span className="text-sm font-medium text-slate-700">Cari</span>
                             <input
@@ -79,18 +79,18 @@ export default function Index({ users, filters }) {
                             </select>
                         </label>
                     </div>
-                    <div className="lg:col-span-2 flex items-end gap-2">
+                    <div className="lg:col-span-3 flex flex-wrap items-end gap-2">
                         <button
                             type="button"
                             onClick={apply}
-                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-all shadow-sm"
+                            className="flex-1 whitespace-nowrap bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-all shadow-sm"
                         >
                             Terapkan
                         </button>
                         <button
                             type="button"
                             onClick={reset}
-                            className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-sm px-3 py-2 rounded-lg transition-all"
+                            className="whitespace-nowrap bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-sm px-3 py-2 rounded-lg transition-all"
                         >
                             Reset
                         </button>

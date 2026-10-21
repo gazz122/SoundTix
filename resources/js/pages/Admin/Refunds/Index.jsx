@@ -107,7 +107,7 @@ export default function Index({ refunds, cancellations, filters, bulk }) {
                     </select>
                 </label>
 
-                <label className="block lg:col-span-4">
+                <label className="block lg:col-span-3">
                     <span className="text-xs font-medium text-slate-700">Cari kode pesanan</span>
                     <input
                         type="search"
@@ -129,17 +129,17 @@ export default function Index({ refunds, cancellations, filters, bulk }) {
                     <span className="text-sm text-slate-700">Rekening sudah lengkap</span>
                 </label>
 
-                <div className="flex items-end gap-2 lg:col-span-2">
+                <div className="flex flex-wrap items-end gap-2 lg:col-span-3">
                     <button
                         type="submit"
-                        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-indigo-700"
+                        className="flex-1 whitespace-nowrap rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-indigo-700"
                     >
                         Terapkan
                     </button>
                     <button
                         type="button"
                         onClick={reset}
-                        className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-all hover:bg-slate-100"
+                        className="whitespace-nowrap rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-all hover:bg-slate-100"
                     >
                         Reset
                     </button>
