@@ -1,18 +1,80 @@
-import { router, useForm, usePage } from '@inertiajs/react';
+import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { rupiah } from '@/lib/format';
 
 const statusStyles = {
     pending: 'border-amber-200 bg-amber-50/60 text-amber-700',
+    waiting_bank_details: 'border-orange-200 bg-orange-50/60 text-orange-700',
+    processing: 'border-blue-200 bg-blue-50/60 text-blue-700',
     completed: 'border-emerald-200 bg-emerald-50/60 text-emerald-700',
     failed: 'border-rose-200 bg-rose-50/60 text-rose-700',
     refunded: 'border-blue-200 bg-blue-50/60 text-blue-700',
 };
 
-export default function Index({ refunds, cancellations }) {
+const STATUS_OPTIONS = [
+    { value: '', label: 'Semua status' },
+    { value: 'pending', label: 'Menunggu' },
+    { value: 'waiting_bank_details', label: 'Menunggu Data Rekening' },
+    { value: 'processing', label: 'Diproses Otomatis' },
+    { value: 'completed', label: 'Selesai' },
+    { value: 'failed', label: 'Gagal' },
+];
+
+export default function Index({ refunds, cancellations, filters, bulk }) {
     const { flash } = usePage().props;
     const [completing, setCompleting] = useState(null);
+
+    const { data, setData, get } = useForm({
+        status: filters.status ?? '',
+        search: filters.search ?? '',
+        ready: filters.ready ?? false,
+    });
+
+    // The list is a paginator now: a cancelled event can carry thousands of
+    // refunds, and rendering them all at once froze the browser.
+    const list = refunds.data ?? [];
+
+    function apply(event) {
+        event?.preventDefault();
+        get('/admin/refunds', { preserveState: true, preserveScroll: true, replace: true });
+    }
+
+    function reset() {
+        setData({ status: '', search: '', ready: false });
+        router.get('/admin/refunds', {}, { preserveState: true, preserveScroll: true, replace: true });
+    }
+
+    // Built from the filters the server actually applied, so the file always
+    // matches the rows the admin is looking at.
+    const exportParams = new URLSearchParams();
+    if (filters.status) exportParams.set('status', filters.status);
+    if (filters.ready) exportParams.set('ready', '1');
+    if (filters.search) exportParams.set('search', filters.search);
+    const exportQuery = exportParams.toString();
+    const exportHref = `/admin/refunds/export${exportQuery ? `?${exportQuery}` : ''}`;
+
+    function completeAll() {
+        const confirmed = window.confirm(
+            [
+                `Tandai ${bulk.count} refund sebagai selesai?`,
+                `Total: ${rupiah(bulk.total)}`,
+                '',
+                'Upload file CSV ke internet banking dulu dan pastikan transfernya berhasil.',
+                'Tindakan ini tidak bisa dibatalkan.',
+            ].join('\n'),
+        );
+
+        if (! confirmed) {
+            return;
+        }
+
+        router.post(
+            '/admin/refunds/complete-batch',
+            { status: filters.status ?? '', search: filters.search ?? '', ready: filters.ready ? 1 : '' },
+            { preserveScroll: true },
+        );
+    }
 
     return (
         <AppLayout>
@@ -25,6 +87,99 @@ export default function Index({ refunds, cancellations }) {
 
             {flash.success && <Flash type="success">{flash.success}</Flash>}
             {flash.error && <Flash type="error">{flash.error}</Flash>}
+
+            <form
+                onSubmit={apply}
+                className="mb-4 grid gap-3 rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm sm:grid-cols-2 lg:grid-cols-12"
+            >
+                <label className="block lg:col-span-3">
+                    <span className="text-xs font-medium text-slate-700">Status</span>
+                    <select
+                        value={data.status}
+                        onChange={(event) => setData('status', event.target.value)}
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
+                    >
+                        {STATUS_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                                {option.label}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+
+                <label className="block lg:col-span-4">
+                    <span className="text-xs font-medium text-slate-700">Cari kode pesanan</span>
+                    <input
+                        type="search"
+                        value={data.search}
+                        onChange={(event) => setData('search', event.target.value)}
+                        onKeyDown={(event) => event.key === 'Enter' && apply()}
+                        placeholder="Contoh: STX-20261019-DG0B"
+                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
+                    />
+                </label>
+
+                <label className="flex items-end gap-2 pb-2 lg:col-span-3">
+                    <input
+                        type="checkbox"
+                        checked={data.ready}
+                        onChange={(event) => setData('ready', event.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+                    />
+                    <span className="text-sm text-slate-700">Rekening sudah lengkap</span>
+                </label>
+
+                <div className="flex items-end gap-2 lg:col-span-2">
+                    <button
+                        type="submit"
+                        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-indigo-700"
+                    >
+                        Terapkan
+                    </button>
+                    <button
+                        type="button"
+                        onClick={reset}
+                        className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-all hover:bg-slate-100"
+                    >
+                        Reset
+                    </button>
+                </div>
+            </form>
+
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm text-slate-500">
+                    {bulk.count > 0
+                        ? `${bulk.count} refund siap ditransfer (${rupiah(bulk.total)}).`
+                        : 'Belum ada refund dengan rekening lengkap pada filter ini.'}
+                </p>
+                {/* Kept visible at zero so the batch actions are discoverable even
+                    before any buyer has filled in an account. */}
+                <div className="flex flex-wrap gap-2">
+                    <a
+                        href={bulk.count > 0 ? exportHref : undefined}
+                        aria-disabled={bulk.count === 0}
+                        className={
+                            bulk.count > 0
+                                ? 'rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-all hover:bg-slate-100'
+                                : 'rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400'
+                        }
+                    >
+                        Export CSV{bulk.count > 0 ? ` (${bulk.count})` : ''}
+                    </a>
+                    <button
+                        type="button"
+                        disabled={bulk.count === 0}
+                        onClick={completeAll}
+                        className={
+                            bulk.count > 0
+                                ? 'rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-emerald-700'
+                                : 'rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-400'
+                        }
+                    >
+                        Tandai Selesai{bulk.count > 0 ? ` (${bulk.count})` : ''}
+                    </button>
+                </div>
+            </div>
 
             {cancellations.length > 0 && (
                 <div className="mb-10">
@@ -82,7 +237,7 @@ export default function Index({ refunds, cancellations }) {
                                                               `\n${rupiah(cancellation.refund_total)} akan dikembalikan.`
                                                             : 'Tidak ada pesanan lunas yang perlu di-refund.',
                                                         '',
-                                                        'Tindakan ini tidak dapat dibatalkan, dana langsung diproses ke Midtrans, dan event akan dibatalkan.',
+                                                        'Tindakan ini tidak dapat dibatalkan, refund akan dicatat dan menunggu transfer manual oleh admin.',
                                                     ].join('\n'),
                                                 );
 
@@ -96,7 +251,7 @@ export default function Index({ refunds, cancellations }) {
                                             }}
                                             className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-all shadow-sm"
                                         >
-                                            Setujui & Refund Semua
+                                            Setujui
                                         </button>
                                     </div>
                                 </div>
@@ -123,14 +278,14 @@ export default function Index({ refunds, cancellations }) {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {refunds.length === 0 ? (
+                            {list.length === 0 ? (
                                 <tr>
                                     <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
-                                        Belum ada pengajuan refund.
+                                        Tidak ada refund pada filter ini.
                                     </td>
                                 </tr>
                             ) : (
-                                refunds.map((refund) => (
+                                list.map((refund) => (
                                     <tr key={refund.id} className="hover:bg-slate-50/50">
                                         <td className="px-4 py-2.5 font-mono text-slate-800">{refund.order_code}</td>
                                         <td className="px-4 py-2.5">
@@ -154,6 +309,9 @@ export default function Index({ refunds, cancellations }) {
                                             <span className={`inline-flex items-center text-xs px-2.5 py-1 rounded-md font-medium border ${statusStyles[refund.status] ?? statusStyles.pending}`}>
                                                 {refund.status_label}
                                             </span>
+                                            {refund.refund_gateway_label && (
+                                                <span className="mt-1 block text-xs text-slate-500">{refund.refund_gateway_label}</span>
+                                            )}
                                         </td>
                                         <td className="px-4 py-2.5 text-slate-600">
                                             {refund.reason}
@@ -198,16 +356,43 @@ export default function Index({ refunds, cancellations }) {
                 </div>
             </div>
 
+            {refunds.links?.length > 3 && <Pagination links={refunds.links} />}
+
             {completing && <CompleteModal refund={completing} onClose={() => setCompleting(null)} />}
         </AppLayout>
     );
 }
 
+function Pagination({ links }) {
+    return (
+        <nav className="mt-6 flex flex-wrap items-center justify-center gap-2">
+            {links.map((link, index) => {
+                const isPage = Number.isFinite(Number(link.label));
+
+                return (
+                    <Link
+                        key={index}
+                        href={link.url ?? '#'}
+                        preserveScroll
+                        className={
+                            link.active
+                                ? 'bg-indigo-600 text-white font-medium px-3.5 py-2 rounded-lg text-sm'
+                                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-3.5 py-2 rounded-lg text-sm'
+                        }
+                    >
+                        {isPage ? link.label : link.label === '&laquo; Previous' ? '←' : '→'}
+                    </Link>
+                );
+            })}
+        </nav>
+    );
+}
+
 function CompleteModal({ refund, onClose }) {
     const { data, setData, post, processing, errors } = useForm({
-        bank_name: '',
-        account_number: '',
-        account_holder_name: '',
+        bank_name: refund.bank_name ?? '',
+        account_number: refund.account_number ?? '',
+        account_holder_name: refund.account_holder_name ?? '',
         proof_of_transfer: null,
         notes: '',
     });
@@ -222,51 +407,53 @@ function CompleteModal({ refund, onClose }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-            <div className="w-full max-w-xl rounded-xl bg-white p-6 shadow-xl">
-                <h3 className="text-lg font-semibold text-slate-900">Konfirmasi Refund Manual</h3>
-                <p className="mt-1 text-sm text-slate-500">
+            <div className="max-h-[90vh] w-full max-w-xl overflow-hidden rounded-xl bg-white p-5 shadow-xl">
+                <h3 className="text-base font-semibold text-slate-900">Konfirmasi Refund Manual</h3>
+                <p className="mt-0.5 text-xs text-slate-500">
                     Transfer dulu ke rekening customer, lalu catat rekening tujuan di bawah.
                 </p>
 
-                <div className="mt-5 space-y-1 rounded-lg border border-slate-200/80 bg-slate-50/60 p-4 text-sm">
-                    <p className="font-mono text-slate-800">{refund.order_code}</p>
-                    <p className="text-slate-600">{refund.customer_name}</p>
-                    <p className="text-slate-600">{refund.event_title ?? '-'}</p>
-                    <p className="font-medium tabular-nums text-slate-900">{rupiah(refund.amount)}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-slate-200/80 bg-slate-50/60 px-3 py-2 text-sm">
+                    <span className="font-mono text-slate-800">{refund.order_code}</span>
+                    <span className="text-slate-600">{refund.customer_name}</span>
+                    <span className="text-slate-600">{refund.event_title ?? '-'}</span>
+                    <span className="ml-auto font-medium tabular-nums text-slate-900">{rupiah(refund.amount)}</span>
                 </div>
 
-                <form onSubmit={submit} className="mt-5 space-y-4">
-                    <label className="block space-y-1.5">
-                        <span className="block text-sm font-medium text-slate-700">
-                            Nama Bank <span className="text-rose-500">*</span>
-                        </span>
-                        <input
-                            type="text"
-                            value={data.bank_name}
-                            onChange={(event) => setData('bank_name', event.target.value)}
-                            placeholder="Contoh: BCA"
-                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
-                        />
-                        {errors.bank_name && <p className="text-sm text-rose-600">{errors.bank_name}</p>}
-                    </label>
+                <form onSubmit={submit} className="mt-3 space-y-2">
+                    <div className="grid gap-2.5 sm:grid-cols-2">
+                        <label className="block space-y-1">
+                            <span className="block text-xs font-medium text-slate-700">
+                                Nama Bank <span className="text-rose-500">*</span>
+                            </span>
+                            <input
+                                type="text"
+                                value={data.bank_name}
+                                onChange={(event) => setData('bank_name', event.target.value)}
+                                placeholder="Contoh: BCA"
+                                className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
+                            />
+                            {errors.bank_name && <p className="text-xs text-rose-600">{errors.bank_name}</p>}
+                        </label>
 
-                    <label className="block space-y-1.5">
-                        <span className="block text-sm font-medium text-slate-700">
-                            Nomor Rekening <span className="text-rose-500">*</span>
-                        </span>
-                        <input
-                            type="text"
-                            inputMode="numeric"
-                            value={data.account_number}
-                            onChange={(event) => setData('account_number', event.target.value)}
-                            placeholder="Contoh: 1234567890"
-                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
-                        />
-                        {errors.account_number && <p className="text-sm text-rose-600">{errors.account_number}</p>}
-                    </label>
+                        <label className="block space-y-1">
+                            <span className="block text-xs font-medium text-slate-700">
+                                Nomor Rekening <span className="text-rose-500">*</span>
+                            </span>
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                value={data.account_number}
+                                onChange={(event) => setData('account_number', event.target.value)}
+                                placeholder="Contoh: 1234567890"
+                                className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
+                            />
+                            {errors.account_number && <p className="text-xs text-rose-600">{errors.account_number}</p>}
+                        </label>
+                    </div>
 
-                    <label className="block space-y-1.5">
-                        <span className="block text-sm font-medium text-slate-700">
+                    <label className="block space-y-1">
+                        <span className="block text-xs font-medium text-slate-700">
                             Nama Pemilik Rekening <span className="text-rose-500">*</span>
                         </span>
                         <input
@@ -274,46 +461,46 @@ function CompleteModal({ refund, onClose }) {
                             value={data.account_holder_name}
                             onChange={(event) => setData('account_holder_name', event.target.value)}
                             placeholder="Nama sesuai buku rekening"
-                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
+                            className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
                         />
-                        {errors.account_holder_name && <p className="text-sm text-rose-600">{errors.account_holder_name}</p>}
+                        {errors.account_holder_name && <p className="text-xs text-rose-600">{errors.account_holder_name}</p>}
                     </label>
 
-                    <label className="block space-y-1.5">
-                        <span className="block text-sm font-medium text-slate-700">Bukti Transfer (opsional)</span>
+                    <label className="block space-y-1">
+                        <span className="block text-xs font-medium text-slate-700">Bukti Transfer (opsional)</span>
                         <input
                             type="file"
                             accept="image/jpeg,image/png,application/pdf"
                             onChange={(event) => setData('proof_of_transfer', event.target.files[0] ?? null)}
-                            className="w-full text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100"
+                            className="w-full text-sm text-slate-700 file:mr-2 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100"
                         />
-                        {errors.proof_of_transfer && <p className="text-sm text-rose-600">{errors.proof_of_transfer}</p>}
+                        {errors.proof_of_transfer && <p className="text-xs text-rose-600">{errors.proof_of_transfer}</p>}
                     </label>
 
-                    <label className="block space-y-1.5">
-                        <span className="block text-sm font-medium text-slate-700">Catatan Admin (opsional)</span>
+                    <label className="block space-y-1">
+                        <span className="block text-xs font-medium text-slate-700">Catatan Admin (opsional)</span>
                         <textarea
-                            rows={3}
+                            rows={2}
                             value={data.notes}
                             onChange={(event) => setData('notes', event.target.value)}
                             placeholder="Contoh: ditransfer via BCA mobile banking."
-                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
+                            className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
                         />
-                        {errors.notes && <p className="text-sm text-rose-600">{errors.notes}</p>}
+                        {errors.notes && <p className="text-xs text-rose-600">{errors.notes}</p>}
                     </label>
 
-                    <div className="flex justify-end gap-3 pt-1">
+                    <div className="flex justify-end gap-2 pt-0.5">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-sm font-medium py-2 px-5 rounded-lg transition-all"
+                            className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-sm font-medium py-1.5 px-4 rounded-lg transition-all"
                         >
                             Batal
                         </button>
                         <button
                             type="submit"
                             disabled={processing}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 px-5 rounded-lg transition-all shadow-sm disabled:opacity-60"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-1.5 px-4 rounded-lg transition-all shadow-sm disabled:opacity-60"
                         >
                             {processing ? 'Menyimpan...' : 'Simpan & Tandai Selesai'}
                         </button>

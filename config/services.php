@@ -19,6 +19,10 @@ return [
         'client_key' => env('MIDTRANS_CLIENT_KEY'),
         'is_production' => env('MIDTRANS_IS_PRODUCTION', false),
         'webhook_url' => env('MIDTRANS_WEBHOOK_URL'),
+        // Iris is a separate Midtrans product with its own API key and its own
+        // activation flow, so it stays off until the merchant is approved.
+        'iris_api_key' => env('MIDTRANS_IRIS_API_KEY'),
+        'iris_enabled' => env('MIDTRANS_IRIS_ENABLED', false),
     ],
 
     'postmark' => [

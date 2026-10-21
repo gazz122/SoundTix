@@ -5,31 +5,35 @@ namespace App\Http\Controllers;
 use App\Enums\EventStatus;
 use App\Enums\OrderStatus;
 use App\Enums\RefundStatus;
+use App\Jobs\ProcessEventCancellationRefundsJob;
 use App\Models\Event;
 use App\Models\Order;
 use App\Models\Refund;
 use App\Notifications\SoundTixNotification;
 use App\Services\RefundService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminRefundPageController extends Controller
 {
     public function __construct(private RefundService $refunds) {}
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $refunds = Refund::query()
+        $refunds = $this->filteredRefunds($request)
             ->with([
                 'order.customer:id,name,email',
                 'order.orderItems.ticketCategory.event:id,title,event_date',
             ])
             ->orderByDesc('created_at')
-            ->get()
-            ->map(fn (Refund $refund) => [
+            ->paginate(50)
+            ->withQueryString()
+            ->through(fn (Refund $refund) => [
                 'id' => $refund->id,
                 'amount' => (float) $refund->amount,
                 'status' => $refund->status->value,
@@ -40,6 +44,8 @@ class AdminRefundPageController extends Controller
                 'account_number' => $refund->account_number,
                 'account_holder_name' => $refund->account_holder_name,
                 'notes' => $refund->notes,
+                'refund_gateway' => $refund->refund_gateway?->value,
+                'refund_gateway_label' => $refund->refund_gateway?->label(),
                 'proof_of_transfer_url' => $refund->proof_of_transfer !== null
                     ? Storage::disk('public')->url($refund->proof_of_transfer)
                     : null,
@@ -50,9 +56,9 @@ class AdminRefundPageController extends Controller
                 'customer_name' => $refund->order->customer->name,
                 'customer_email' => $refund->order->customer->email,
                 'event_title' => $refund->order->orderItems->first()?->ticketCategory?->event?->title,
-            ])
-            ->values()
-            ->all();
+            ]);
+
+        $transferable = $this->transferableRefunds($request);
 
         $cancellations = Event::query()
             ->where('status', EventStatus::PendingCancellation->value)
@@ -90,7 +96,68 @@ class AdminRefundPageController extends Controller
         return Inertia::render('Admin/Refunds/Index', [
             'refunds' => $refunds,
             'cancellations' => $cancellations,
+            'filters' => [
+                'status' => RefundStatus::tryFrom((string) $request->input('status', ''))?->value,
+                'search' => trim((string) $request->input('search', '')),
+                'ready' => $request->boolean('ready'),
+            ],
+            // Drives the bulk action's confirmation, so the admin sees how many
+            // transfers one click will settle before committing.
+            'bulk' => [
+                'count' => $transferable->count(),
+                'total' => (float) $transferable->sum('amount'),
+            ],
         ]);
+    }
+
+    /**
+     * Download the current selection as a bank bulk-transfer file.
+     *
+     * Banks settle a hundred transfers uploaded in one file; the alternative is
+     * an admin typing every account number by hand.
+     */
+    public function export(Request $request): StreamedResponse
+    {
+        $query = $this->transferableRefunds($request)->with('order:id,order_code');
+
+        return response()->streamDownload(function () use ($query): void {
+            $handle = fopen('php://output', 'w');
+
+            // The remark carries the order code so every transfer in the file can
+            // be traced back to the refund it settles.
+            fputcsv($handle, ['bank_name', 'account_number', 'account_holder_name', 'amount', 'remark']);
+
+            $query->chunkById(500, function ($refunds) use ($handle): void {
+                foreach ($refunds as $refund) {
+                    fputcsv($handle, [
+                        $refund->bank_name,
+                        $refund->account_number,
+                        $refund->account_holder_name,
+                        number_format((float) $refund->amount, 2, '.', ''),
+                        $refund->order?->order_code,
+                    ]);
+                }
+            });
+
+            fclose($handle);
+        }, 'refund-transfer-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /**
+     * Settle every refund the current filter selects.
+     *
+     * Used after a bank file upload: the money left the account in one batch, so
+     * the records are closed in one batch too.
+     */
+    public function completeBatch(Request $request): RedirectResponse
+    {
+        $completed = $this->refunds->completeBatch(
+            $this->transferableRefunds($request)->lazyById(500),
+        );
+
+        return redirect()
+            ->route('admin.refunds.index', $request->only(['status', 'search', 'ready']))
+            ->with('success', "{$completed} refund ditandai selesai.");
     }
 
     public function complete(Request $request, Refund $refund): RedirectResponse
@@ -130,32 +197,14 @@ class AdminRefundPageController extends Controller
     {
         $event = $this->findPendingCancellation($eventId);
 
-        $this->refunds->cancelEventAndRefund($event, (string) $event->cancellation_reason);
-
-        $orders = Order::query()
-            ->where('status', OrderStatus::Cancelled)
-            ->whereHas('orderItems.ticketCategory', fn ($query) => $query->where('event_id', $event->id))
-            ->with('customer:id,name,email')
-            ->get();
-
-        foreach ($orders as $order) {
-            $order->customer->notify(new SoundTixNotification([
-                'title' => 'Event dibatalkan',
-                'message' => "Event \"{$event->title}\" dibatalkan. Dana pesanan {$order->order_code} akan dikembalikan oleh admin.",
-                'type' => 'event_cancelled',
-                'action_url' => route('orders.show', $order->order_code),
-                'action_label' => 'Lihat pesanan',
-            ]));
-        }
-
-        $pending = Refund::query()
-            ->where('status', RefundStatus::Pending)
-            ->whereHas('order.orderItems.ticketCategory', fn ($query) => $query->where('event_id', $event->id))
-            ->count();
+        // Thousands of refunds must not be opened inside a web request, so the
+        // cancel-and-refund work is handed to the queue. The job notifies the
+        // buyers and prints the refunds.
+        ProcessEventCancellationRefundsJob::dispatch($event);
 
         return redirect()->route('admin.refunds.index')->with(
             'success',
-            "Event \"{$event->title}\" dibatalkan. {$pending} refund menunggu transfer manual oleh admin."
+            "Pembatalan event \"{$event->title}\" disetujui. Refund sedang dibuat dan diproses.",
         );
     }
 
@@ -183,5 +232,41 @@ class AdminRefundPageController extends Controller
     private function findPendingCancellation(int $eventId): Event
     {
         return Event::with('organizer')->where('status', EventStatus::PendingCancellation->value)->findOrFail($eventId);
+    }
+
+    /**
+     * @return Builder<Refund>
+     */
+    private function filteredRefunds(Request $request): Builder
+    {
+        // input(), not query(): the batch actions post the same filters back.
+        $status = RefundStatus::tryFrom((string) $request->input('status', ''));
+        $search = trim((string) $request->input('search', ''));
+
+        return Refund::query()
+            ->when($status, fn (Builder $query) => $query->where('status', $status))
+            ->when($request->boolean('ready'), fn (Builder $query) => $query
+                ->whereNotNull('bank_name')
+                ->whereNotNull('account_number')
+                ->whereNotNull('account_holder_name'))
+            ->when($search !== '', fn (Builder $query) => $query->whereHas(
+                'order',
+                fn (Builder $order) => $order->where('order_code', 'like', "%{$search}%"),
+            ));
+    }
+
+    /**
+     * Refunds the admin can settle as one batch: the destination is known and no
+     * gateway is mid-flight. Mirrors Refund::canBeCompleted().
+     *
+     * @return Builder<Refund>
+     */
+    private function transferableRefunds(Request $request): Builder
+    {
+        return $this->filteredRefunds($request)
+            ->whereNotIn('status', [RefundStatus::Completed->value, RefundStatus::Processing->value])
+            ->whereNotNull('bank_name')
+            ->whereNotNull('account_number')
+            ->whereNotNull('account_holder_name');
     }
 }

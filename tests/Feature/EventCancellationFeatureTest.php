@@ -123,14 +123,17 @@ class EventCancellationFeatureTest extends TestCase
             'order_id' => $order->id,
             'amount' => 400_000,
             'reason' => 'Event dibatalkan: Artis berhalangan hadir.',
-            'status' => RefundStatus::Pending->value,
+            // Automation is off in tests, so the refund parks until the buyer
+            // says which account the money should go to.
+            'status' => RefundStatus::WaitingBankDetails->value,
         ]);
         $this->assertDatabaseHas('tickets', [
             'order_item_id' => $item->id,
             'status' => TicketStatus::Cancelled->value,
         ]);
         $this->assertSame($stockBefore + 2, $category->fresh()->available_quantity);
-        $this->assertSame(1, $customer->notifications()->count());
+        $this->assertSame(1, $customer->notifications()->where('data->type', 'event_cancelled')->count());
+        $this->assertSame(1, $customer->notifications()->where('data->type', 'refund_bank_details')->count());
     }
 
     public function test_admin_can_reject_cancellation_request(): void

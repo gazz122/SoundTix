@@ -22,6 +22,13 @@ interface PaymentGatewayInterface
     public function checkStatus(Payment $payment): PaymentStatus;
 
     /**
+     * Ask the gateway to return money for a settled payment.
+     *
+     * @return array{refunded: bool, status_message: string, raw: array<string, mixed>}
+     */
+    public function refund(Payment $payment, int $amount, string $refundKey, string $reason): array;
+
+    /**
      * Apply a result to a payment. On settlement the order is marked paid
      * and e-tickets are issued; on expire the order's holding stock is released.
      */

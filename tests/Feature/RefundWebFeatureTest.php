@@ -105,10 +105,10 @@ class RefundWebFeatureTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('Admin/Refunds/Index')
-                ->has('refunds', 1)
-                ->where('refunds.0.id', $refund->id)
-                ->where('refunds.0.status', 'pending')
-                ->where('refunds.0.order_code', $order->order_code));
+                ->has('refunds.data', 1)
+                ->where('refunds.data.0.id', $refund->id)
+                ->where('refunds.data.0.status', 'pending')
+                ->where('refunds.data.0.order_code', $order->order_code));
     }
 
     public function test_pending_cancellation_exposes_the_refundable_total(): void
@@ -144,9 +144,9 @@ class RefundWebFeatureTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('Admin/Refunds/Index')
-                ->has('refunds', 1)
-                ->where('refunds.0.customer_name', $customer->name)
-                ->where('refunds.0.customer_email', $customer->email));
+                ->has('refunds.data', 1)
+                ->where('refunds.data.0.customer_name', $customer->name)
+                ->where('refunds.data.0.customer_email', $customer->email));
     }
 
     public function test_admin_can_complete_a_refund_with_the_destination_account(): void
@@ -318,10 +318,10 @@ class RefundWebFeatureTest extends TestCase
             ->get('/admin/refunds')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->where('refunds.0.bank_name', 'BCA')
-                ->where('refunds.0.account_number', '1234567890')
-                ->where('refunds.0.account_holder_name', 'Budi Santoso')
-                ->where('refunds.0.can_complete', false)
+                ->where('refunds.data.0.bank_name', 'BCA')
+                ->where('refunds.data.0.account_number', '1234567890')
+                ->where('refunds.data.0.account_holder_name', 'Budi Santoso')
+                ->where('refunds.data.0.can_complete', false)
             );
     }
 

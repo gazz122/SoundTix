@@ -102,12 +102,18 @@ export default function Show({ order }) {
                             latestRefund.status === 'failed' ? 'text-rose-700' : 'text-amber-700'
                         }`}
                     >
-                        {latestRefund.status === 'failed'
-                            ? 'Refund belum berhasil diproses. Tim kami sedang menfollow up.'
-                            : 'Pengembalian dana sedang diproses ke metode pembayaran awal Anda.'}
+                        {refundMessage(latestRefund.status)}
                     </p>
                     {latestRefund.reason && (
                         <p className="mt-1 text-sm text-slate-600">Alasan: {latestRefund.reason}</p>
+                    )}
+                    {latestRefund.status === 'waiting_bank_details' && (
+                        <Link
+                            href={`/refunds/${latestRefund.id}/account`}
+                            className="mt-3 inline-flex rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-indigo-700"
+                        >
+                            Isi data rekening
+                        </Link>
                     )}
                 </div>
             )}
@@ -173,6 +179,18 @@ export default function Show({ order }) {
             )}
         </AppLayout>
     );
+}
+
+function refundMessage(status) {
+    if (status === 'failed') {
+        return 'Refund belum berhasil diproses. Tim kami sedang menfollow up.';
+    }
+
+    if (status === 'waiting_bank_details') {
+        return 'Kami butuh rekening tujuan untuk mengirim dana pengembalian Anda.';
+    }
+
+    return 'Pengembalian dana sedang diproses ke metode pembayaran awal Anda.';
 }
 
 function PaymentMethods({ order }) {

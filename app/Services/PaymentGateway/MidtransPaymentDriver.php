@@ -115,6 +115,34 @@ class MidtransPaymentDriver implements PaymentGatewayInterface
         $this->processor->process($payment, $result);
     }
 
+    /**
+     * Midtrans refunds are keyed by the refund_key we send, so a retry after a
+     * timeout is rejected by the gateway instead of paying the buyer twice.
+     *
+     * @return array{refunded: bool, status_message: string, raw: array<string, mixed>}
+     */
+    public function refund(Payment $payment, int $amount, string $refundKey, string $reason): array
+    {
+        $response = $this->client()
+            ->post($this->apiUrl().'/v2/'.rawurlencode($payment->transaction_id).'/refund', [
+                'refund_key' => $refundKey,
+                'amount' => $amount,
+                'reason' => $reason,
+            ])
+            ->throw()
+            ->json();
+
+        if (! is_array($response)) {
+            throw new UnexpectedValueException('Midtrans returned an invalid refund response.');
+        }
+
+        return [
+            'refunded' => true,
+            'status_message' => (string) ($response['status_message'] ?? 'Refund diterima Midtrans.'),
+            'raw' => $response,
+        ];
+    }
+
     private function client(): PendingRequest
     {
         $serverKey = config('services.midtrans.server_key');

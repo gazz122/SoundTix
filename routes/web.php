@@ -20,6 +20,7 @@ use App\Http\Controllers\OrganizerPayoutPageController;
 use App\Http\Controllers\OrganizerRefundPageController;
 use App\Http\Controllers\OrganizerReportController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\RefundAccountController;
 use App\Http\Controllers\RundownController;
 use App\Http\Controllers\TicketCategoryController;
 use Illuminate\Support\Facades\Route;
@@ -105,6 +106,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/payouts/{payout}/complete', [AdminPayoutPageController::class, 'complete'])->name('payouts.complete');
 
         Route::get('/refunds', [AdminRefundPageController::class, 'index'])->name('refunds.index');
+        Route::get('/refunds/export', [AdminRefundPageController::class, 'export'])->name('refunds.export');
+        Route::post('/refunds/complete-batch', [AdminRefundPageController::class, 'completeBatch'])->name('refunds.complete-batch');
         Route::post('/refunds/{refund}/complete', [AdminRefundPageController::class, 'complete'])->name('refunds.complete');
         Route::post('/refunds/events/{event}/approve-cancellation', [AdminRefundPageController::class, 'approveCancellation'])->name('refunds.events.approve-cancellation');
         Route::post('/refunds/events/{event}/reject-cancellation', [AdminRefundPageController::class, 'rejectCancellation'])->name('refunds.events.reject-cancellation');
@@ -131,6 +134,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/orders/{order:order_code}', [OrderController::class, 'show'])->name('show');
         Route::post('/orders/{order:order_code}/cancel', [OrderController::class, 'cancel'])->name('cancel');
         Route::post('/events/{slug}/order', [OrderController::class, 'store'])->name('store');
+    });
+
+    Route::middleware('role:customer')->name('refunds.')->group(function () {
+        Route::get('/refunds/{refund}/account', [RefundAccountController::class, 'show'])->name('account.show');
+        Route::post('/refunds/{refund}/account', [RefundAccountController::class, 'store'])->name('account.store');
     });
 
     Route::middleware('role:customer')->name('payments.')->group(function () {
