@@ -148,7 +148,7 @@ function RejectModal({ event, onClose }) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
-            <div className="relative w-full max-w-md bg-white border border-slate-200/80 rounded-xl shadow-sm p-6">
+            <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto bg-white border border-slate-200/80 rounded-xl shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-slate-900">Tolak Event</h3>
                 <p className="mt-1 text-sm text-slate-500">
                     Tolak <span className="font-medium text-slate-700">{event.title}</span> dan berikan alasan yang jelas.

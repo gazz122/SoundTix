@@ -106,11 +106,11 @@ function ProcessModal({ payout, onClose }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-            <div className="w-full max-w-xl rounded-xl bg-white p-6 shadow-xl">
+            <div className="max-h-[90vh] w-full max-w-xl overflow-hidden rounded-xl bg-white p-6 shadow-xl">
                 <h3 className="text-lg font-semibold text-slate-900">Konfirmasi Payout Manual</h3>
                 <p className="mt-1 text-sm text-slate-500">Transfer ke rekening organizer lalu unggah buktinya.</p>
 
-                <div className="mt-5 rounded-lg border border-slate-200/80 divide-y divide-slate-200/80">
+                <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border border-slate-200/80 bg-slate-50/60 p-4 sm:grid-cols-3">
                     <DetailRow label="Event" value={payout.event ?? '-'} />
                     <DetailRow label="Organizer" value={payout.organizer ?? '-'} />
                     <DetailRow label="Bank" value={payout.bank_name} />
@@ -119,7 +119,7 @@ function ProcessModal({ payout, onClose }) {
                     <CopyableRow label="Nominal Bersih" value={rupiah(payout.net_amount)} copyValue={String(payout.net_amount)} />
                 </div>
 
-                <form onSubmit={submit} className="mt-5 space-y-4">
+                <form onSubmit={submit} className="mt-4 space-y-3">
                     <label className="block space-y-1.5">
                         <span className="block text-sm font-medium text-slate-700">
                             Bukti Transfer (Gambar/PDF) <span className="text-rose-500">*</span>
@@ -136,7 +136,7 @@ function ProcessModal({ payout, onClose }) {
                     <label className="block space-y-1.5">
                         <span className="block text-sm font-medium text-slate-700">Catatan Admin (opsional)</span>
                         <textarea
-                            rows={3}
+                            rows={2}
                             value={data.admin_notes}
                             onChange={(event) => setData('admin_notes', event.target.value)}
                             placeholder="Contoh: ditransfer ke BCA atas nama PT Soundtix Promoter."
@@ -169,9 +169,9 @@ function ProcessModal({ payout, onClose }) {
 
 function DetailRow({ label, value }) {
     return (
-        <div className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
-            <span className="text-slate-500">{label}</span>
-            <span className="font-medium text-slate-800">{value}</span>
+        <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+            <p className="mt-0.5 text-sm font-medium text-slate-800">{value}</p>
         </div>
     );
 }
@@ -186,10 +186,10 @@ function CopyableRow({ label, value, copyValue }) {
     }
 
     return (
-        <div className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
-            <span className="text-slate-500">{label}</span>
-            <span className="flex items-center gap-2">
-<span className="font-medium text-slate-800 tabular-nums">{value}</span>
+        <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+            <span className="mt-0.5 flex items-center gap-2">
+                <span className="text-sm font-medium tabular-nums text-slate-800">{value}</span>
                 <button
                     type="button"
                     onClick={copy}

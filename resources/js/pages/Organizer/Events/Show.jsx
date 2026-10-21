@@ -156,7 +156,7 @@ function CancelModal({ event, onClose }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-            <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
+            <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
                 <h3 className="text-lg font-semibold text-slate-900">Konfirmasi Pembatalan Event</h3>
                 <p className="mt-1 text-sm text-slate-500">
                     Pengajuan ini akan menunggu persetujuan admin. Jika disetujui, semua pesanan yang sudah lunas
