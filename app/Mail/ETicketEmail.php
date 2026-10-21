@@ -28,6 +28,11 @@ class ETicketEmail extends Mailable
 
     public function content(): Content
     {
-        return new Content(view: 'mail.ticket');
+        return new Content(
+            view: 'mail.ticket',
+            // A plain-text alternative keeps the message from looking like an
+            // HTML-only blast, which mail filters treat as a spam signal.
+            text: 'mail.ticket-text',
+        );
     }
 }

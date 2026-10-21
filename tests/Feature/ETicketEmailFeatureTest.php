@@ -9,6 +9,8 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Services\QrCodeRenderer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Mail\Events\MessageSent;
+use Illuminate\Support\Facades\Event as EventFacade;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
@@ -69,6 +71,28 @@ class ETicketEmailFeatureTest extends TestCase
         foreach (Mail::sent(ETicketEmail::class) as $mail) {
             $this->assertTrue(getimagesizefromstring($mail->qrPng)[2] === IMAGETYPE_PNG);
         }
+    }
+
+    public function test_eticket_email_has_a_plain_text_part_and_a_png_inline_image(): void
+    {
+        $sent = [];
+        EventFacade::listen(MessageSent::class, function (MessageSent $event) use (&$sent): void {
+            $sent[] = $event->message;
+        });
+
+        $order = $this->paidOrderWithTickets(1);
+
+        $this->assertCount(1, $sent);
+
+        $message = $sent[0];
+
+        $this->assertNotNull($message->getTextBody(), 'E-tiket harus punya versi plain-text.');
+        $this->assertStringContainsString($order->order_code, (string) $message->getTextBody());
+
+        $raw = $message->toString();
+
+        $this->assertStringContainsString('Content-Type: image/png', $raw);
+        $this->assertStringNotContainsString('application/octet-stream', $raw);
     }
 
     public function test_day_specific_ticket_email_uses_the_selected_day_date(): void

@@ -50,7 +50,7 @@
 
                             <div style="margin-top:20px;padding-top:16px;border-top:2px dashed #e2e8f0;text-align:center;">
                                 <img
-                                    src="{{ $message->embedData($qrPng, 'eticket-'.Str::slug($ticket['ticket_code']).'.png') }}"
+                                    src="{{ $message->embedData($qrPng, 'eticket-'.Str::slug($ticket['ticket_code']).'.png', 'image/png') }}"
                                     alt="QR Code E-Tiket"
                                     width="240"
                                     height="240"
