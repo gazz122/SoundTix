@@ -77,20 +77,20 @@ class GatekeeperValidationFeatureTest extends TestCase
     public function test_scanner_schedule_includes_multi_day_gate_hours(): void
     {
         $event = Event::factory()->published()->create([
-            'event_date' => '2026-10-07',
+            'event_date' => now()->subDay()->toDateString(),
             'duration_type' => 'multi_day',
             'total_days' => 3,
             'open_gate' => null,
             'close_gate' => null,
         ]);
         $event->eventDays()->createMany([
-            ['day_number' => 1, 'date' => '2026-10-07'],
-            ['day_number' => 2, 'date' => '2026-10-08'],
+            ['day_number' => 1, 'date' => now()->subDay()->toDateString()],
+            ['day_number' => 2, 'date' => now()->toDateString()],
             [
                 'day_number' => 3,
-                'date' => '2026-10-09',
-                'open_gate' => '2026-10-09 09:00:00',
-                'close_gate' => '2026-10-09 15:00:00',
+                'date' => now()->addDay()->toDateString(),
+                'open_gate' => now()->addDay()->setTime(9, 0)->format('Y-m-d H:i:s'),
+                'close_gate' => now()->addDay()->setTime(15, 0)->format('Y-m-d H:i:s'),
             ],
         ]);
 
@@ -99,9 +99,9 @@ class GatekeeperValidationFeatureTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->where('rundowns.0.id', $event->id)
                 ->where('rundowns.0.duration_type', 'multi_day')
-                ->where('rundowns.0.event_days.2.date', '09 Oct 2026')
-                ->where('rundowns.0.event_days.2.open_gate', '16:00')
-                ->where('rundowns.0.event_days.2.close_gate', '22:00'));
+                ->where('rundowns.0.event_days.2.date', now()->addDay()->format('d M Y'))
+                ->where('rundowns.0.event_days.2.open_gate', (now()->addDay()->setTime(9, 0)->setTimezone('Asia/Jakarta')->format('H:i')))
+                ->where('rundowns.0.event_days.2.close_gate', (now()->addDay()->setTime(15, 0)->setTimezone('Asia/Jakarta')->format('H:i'))));
     }
 
     public function test_scanner_page_reports_scanned_and_capacity_counts(): void
