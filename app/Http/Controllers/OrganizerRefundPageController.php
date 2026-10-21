@@ -17,9 +17,14 @@ class OrganizerRefundPageController extends Controller
                 'order.customer:id,name,email',
                 'order.orderItems.ticketCategory.event:id,title,event_date',
             ])
+            // One cancelled event can open thousands of refunds, so the same list
+            // pages instead of loading every row at once. The id tiebreaker keeps
+            // paging stable when rows share a timestamp.
             ->orderByDesc('created_at')
-            ->get()
-            ->map(fn (Refund $refund) => [
+            ->orderByDesc('id')
+            ->paginate(50)
+            ->withQueryString()
+            ->through(fn (Refund $refund) => [
                 'id' => $refund->id,
                 'amount' => (float) $refund->amount,
                 'status' => $refund->status->value,
@@ -31,9 +36,7 @@ class OrganizerRefundPageController extends Controller
                 'customer_email' => $refund->order->customer?->email,
                 'event_title' => $refund->order->orderItems->first()?->ticketCategory?->event?->title,
                 'event_date' => $refund->order->orderItems->first()?->ticketCategory?->event?->event_date?->format('d M Y'),
-            ])
-            ->values()
-            ->all();
+            ]);
 
         return Inertia::render('Organizer/Refunds/Index', ['refunds' => $refunds]);
     }

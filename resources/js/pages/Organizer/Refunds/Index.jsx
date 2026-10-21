@@ -1,9 +1,11 @@
-import { usePage } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import AppLayout from '@/components/AppLayout';
 import { rupiah } from '@/lib/format';
 
 const statusStyles = {
     pending: 'border-amber-200 bg-amber-50/60 text-amber-700',
+    waiting_bank_details: 'border-orange-200 bg-orange-50/60 text-orange-700',
+    processing: 'border-blue-200 bg-blue-50/60 text-blue-700',
     completed: 'border-emerald-200 bg-emerald-50/60 text-emerald-700',
     failed: 'border-rose-200 bg-rose-50/60 text-rose-700',
     refunded: 'border-blue-200 bg-blue-50/60 text-blue-700',
@@ -11,6 +13,7 @@ const statusStyles = {
 
 export default function Index({ refunds }) {
     const { flash } = usePage().props;
+    const list = refunds.data ?? [];
 
     return (
         <AppLayout>
@@ -39,14 +42,14 @@ export default function Index({ refunds }) {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {refunds.length === 0 ? (
+                            {list.length === 0 ? (
                                 <tr>
                                     <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
                                         Belum ada refund untuk event Anda.
                                     </td>
                                 </tr>
                             ) : (
-                                refunds.map((refund) => (
+                                list.map((refund) => (
                                     <tr key={refund.id} className="hover:bg-slate-50/50">
                                         <td className="px-4 py-2.5 text-slate-800">
                                             {refund.event_title ?? '-'}
@@ -74,7 +77,34 @@ export default function Index({ refunds }) {
                     </table>
                 </div>
             </div>
+
+            {refunds.links?.length > 3 && <Pagination links={refunds.links} />}
         </AppLayout>
+    );
+}
+
+function Pagination({ links }) {
+    return (
+        <nav className="mt-6 flex flex-wrap items-center justify-center gap-2">
+            {links.map((link, index) => {
+                const isPage = Number.isFinite(Number(link.label));
+
+                return (
+                    <Link
+                        key={index}
+                        href={link.url ?? '#'}
+                        preserveScroll
+                        className={
+                            link.active
+                                ? 'bg-indigo-600 text-white font-medium px-3.5 py-2 rounded-lg text-sm'
+                                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-3.5 py-2 rounded-lg text-sm'
+                        }
+                    >
+                        {isPage ? link.label : link.label === '&laquo; Previous' ? '←' : '→'}
+                    </Link>
+                );
+            })}
+        </nav>
     );
 }
 

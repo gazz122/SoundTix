@@ -178,9 +178,23 @@ class EventCancellationFeatureTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('Organizer/Refunds/Index')
-                ->has('refunds', 1)
-                ->where('refunds.0.id', $refund->id)
-                ->where('refunds.0.order_code', $order->order_code));
+                ->has('refunds.data', 1)
+                ->where('refunds.data.0.id', $refund->id)
+                ->where('refunds.data.0.order_code', $order->order_code));
+    }
+
+    public function test_organizer_refund_list_is_paginated(): void
+    {
+        [$organizer, , , $order] = $this->paidOrderForEvent();
+
+        Refund::factory()->count(55)->create(['order_id' => $order->id]);
+
+        $this->actingAs($organizer)->get('/organizer/refunds')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Organizer/Refunds/Index')
+                ->has('refunds.data', 50)
+                ->where('refunds.total', 55));
     }
 
     public function test_customer_cannot_access_organizer_refund_pages(): void

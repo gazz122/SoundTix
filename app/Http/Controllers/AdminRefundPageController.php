@@ -31,6 +31,7 @@ class AdminRefundPageController extends Controller
                 'order.orderItems.ticketCategory.event:id,title,event_date',
             ])
             ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(50)
             ->withQueryString()
             ->through(fn (Refund $refund) => [
