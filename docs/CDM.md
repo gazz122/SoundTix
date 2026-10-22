@@ -1,5 +1,7 @@
 ﻿# SoundTix CDM (Conceptual Data Model)
 
+> Detail fisiknya — tipe kolom, nullability, default, index, dan foreign key — ada di [PDM](./PDM.md).
+
 ## Entities and Relationships
 
 ### Core Entities
