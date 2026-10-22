@@ -8,6 +8,7 @@ use App\Models\EventDay;
 use App\Models\Refund;
 use App\Repositories\EventRepository;
 use App\Repositories\PerformerRepository;
+use Closure;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -178,6 +179,27 @@ class OrganizerEventController extends Controller
         $isMulti = $request->input('duration_type') === 'multi_day';
         $totalDays = (int) ($request->input('total_days') ?? 1);
 
+        // Closing time is a deadline inside the open day, not a moment that must
+        // come after the opening time, so only the calendar date is compared.
+        $closeNotBeforeOpen = function (string $attribute, mixed $value, Closure $fail) use ($request): void {
+            $open = $request->input(preg_replace('/close_gate$/', 'open_gate', $attribute));
+
+            if (! is_string($open) || trim($open) === '' || ! is_string($value) || trim($value) === '') {
+                return;
+            }
+
+            try {
+                $openDate = Carbon::parse($open)->startOfDay();
+                $closeDate = Carbon::parse($value)->startOfDay();
+            } catch (\Throwable) {
+                return;
+            }
+
+            if ($closeDate->lt($openDate)) {
+                $fail('Tanggal tutup pintu tidak boleh sebelum tanggal buka pintu.');
+            }
+        };
+
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string'],
@@ -190,12 +212,12 @@ class OrganizerEventController extends Controller
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['nullable', 'date_format:H:i'],
             'open_gate' => ['nullable', 'date'],
-            'close_gate' => $isMulti ? ['nullable', 'date'] : ['nullable', 'date', 'after:open_gate'],
+            'close_gate' => ['nullable', 'date', $closeNotBeforeOpen],
             'event_days' => $isMulti ? ['required', 'array', 'size:'.$totalDays] : ['nullable', 'array'],
             'event_days.*.day_number' => ['required', 'integer', 'distinct', 'min:1', 'max:30'],
             'event_days.*.date' => $isMulti ? ['required', 'date', 'after:today'] : ['nullable', 'date'],
             'event_days.*.open_gate' => ['nullable', 'date'],
-            'event_days.*.close_gate' => ['nullable', 'date', 'after:event_days.*.open_gate'],
+            'event_days.*.close_gate' => ['nullable', 'date', $closeNotBeforeOpen],
             'status' => ['required', Rule::enum(EventStatus::class)->only([EventStatus::Draft, EventStatus::Pending])],
             'banner' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:2048'],
             'performers' => ['nullable', 'array'],

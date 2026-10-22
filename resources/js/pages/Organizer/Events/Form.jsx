@@ -191,7 +191,7 @@ export default function Form({ event }) {
                                 <Field label="Jam Tutup Pintu (opsional)" type="datetime-local" value={data.close_gate} onChange={(value) => setData('close_gate', value)} error={errors.close_gate} />
                             </div>
                             <p className="text-xs text-slate-400">
-                                Jam mulai acara berbeda dari jam pintu. Scan tiket hanya diterima setelah pintu dibuka dan sebelum pintu ditutup. Waktu dalam WIB.
+                                Jam mulai acara berbeda dari jam pintu. Scan tiket hanya diterima setelah pintu dibuka dan sebelum pintu ditutup. Waktu dalam WIB. Tanggal tutup pintu tidak boleh sebelum tanggal buka; jamnya bebas.
                             </p>
                         </>
                     ) : (
@@ -245,7 +245,7 @@ export default function Form({ event }) {
                                 ))}
                             </div>
                             <p className="text-xs text-slate-400">
-                                Jam mulai acara berbeda dari jam pintu. Atur jam buka/tutup pintu tiap hari; scan tiket hanya diterima dalam rentang tersebut. Tanggal & waktu dalam WIB.
+                                Jam mulai acara berbeda dari jam pintu. Atur jam buka/tutup pintu tiap hari; scan tiket hanya diterima dalam rentang tersebut. Tanggal & waktu dalam WIB. Tiap hari dibandingkan dengan gate-nya sendiri, jadi jam tutup boleh lebih awal dari jam buka asal tanggalnya sama.
                             </p>
                         </>
                     )}

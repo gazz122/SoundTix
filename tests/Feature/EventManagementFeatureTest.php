@@ -389,6 +389,69 @@ class EventManagementFeatureTest extends TestCase
         $this->assertSame('15:00:00', $day->close_gate->format('H:i:s'));
     }
 
+    public function test_close_gate_may_be_earlier_in_the_day_on_the_same_date(): void
+    {
+        $organizer = $this->organizer();
+        $date = now()->addDays(10)->toDateString();
+
+        $this->actingAs($organizer)
+            ->post('/organizer/events', [
+                ...$this->validPayload(),
+                'duration_type' => 'single',
+                'total_days' => 1,
+                'open_gate' => $date.'T20:00',
+                'close_gate' => $date.'T08:00',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $day = Event::where('organizer_id', $organizer->id)->firstOrFail()->eventDays()->firstOrFail();
+        $this->assertSame('08:00', $day->close_gate->setTimezone('Asia/Jakarta')->format('H:i'));
+    }
+
+    public function test_close_gate_rejects_a_date_before_the_open_gate(): void
+    {
+        $date = now()->addDays(10);
+
+        $this->actingAs($this->organizer())
+            ->post('/organizer/events', [
+                ...$this->validPayload(),
+                'duration_type' => 'single',
+                'total_days' => 1,
+                'open_gate' => $date->toDateString().'T20:00',
+                'close_gate' => $date->copy()->subDay()->toDateString().'T23:00',
+            ])
+            ->assertSessionHasErrors('close_gate');
+
+        $this->assertCount(0, Event::all());
+    }
+
+    public function test_multi_day_close_gate_is_compared_only_with_its_own_day(): void
+    {
+        $organizer = $this->organizer();
+        $day1 = now()->addDays(5)->toDateString();
+        $day2 = now()->addDays(6)->toDateString();
+
+        $this->actingAs($organizer)
+            ->post('/organizer/events', [
+                ...$this->validPayload(),
+                'duration_type' => 'multi_day',
+                'total_days' => 2,
+                'event_days' => [
+                    // Day 1 closes before day 2 ever opens, which used to be compared
+                    // against every day's open gate instead of its own.
+                    ['day_number' => 1, 'date' => $day1, 'open_gate' => $day1.'T18:00', 'close_gate' => $day1.'T08:00'],
+                    ['day_number' => 2, 'date' => $day2, 'open_gate' => $day2.'T18:00', 'close_gate' => $day2.'T23:00'],
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $days = Event::where('organizer_id', $organizer->id)->firstOrFail()->eventDays()->orderBy('day_number')->get();
+        $this->assertCount(2, $days);
+        $this->assertSame('08:00', $days[0]->close_gate->setTimezone('Asia/Jakarta')->format('H:i'));
+    }
+
     public function test_organizer_can_create_multi_day_event_with_daily_schedule(): void
     {
         $organizer = $this->organizer();
