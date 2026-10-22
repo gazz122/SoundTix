@@ -59,22 +59,47 @@ class AdminUserPageFeatureTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_admin_can_create_user_via_web_form(): void
+    public function test_admin_can_create_organizer_via_web_form(): void
+    {
+        $this->actingAs($this->admin())
+            ->post('/admin/users', [
+                'name' => 'Organizer Baru',
+                'email' => 'organizer.baru@example.com',
+                'phone' => '081234567890',
+                'password' => 'secret123',
+                'role' => 'organizer',
+            ])
+            ->assertRedirect(route('admin.users.index'));
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'organizer.baru@example.com',
+            'role' => 'organizer',
+        ]);
+    }
+
+    public function test_admin_cannot_create_non_organizer_accounts_via_web_form(): void
     {
         $this->actingAs($this->admin())
             ->post('/admin/users', [
                 'name' => 'Petugas Gate B',
                 'email' => 'gate.b@example.com',
-                'phone' => '081234567890',
                 'password' => 'secret123',
                 'role' => 'gatekeeper',
             ])
-            ->assertRedirect(route('admin.users.index'));
+            ->assertSessionHasErrors('role');
 
-        $this->assertDatabaseHas('users', [
-            'email' => 'gate.b@example.com',
-            'role' => 'gatekeeper',
-        ]);
+        $this->assertDatabaseMissing('users', ['email' => 'gate.b@example.com']);
+    }
+
+    public function test_create_page_only_offers_the_organizer_role(): void
+    {
+        $this->actingAs($this->admin())
+            ->get('/admin/users/create')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Users/Form')
+                ->has('roles', 1)
+                ->where('roles.0.value', 'organizer'));
     }
 
     public function test_admin_can_update_user_via_web_form(): void

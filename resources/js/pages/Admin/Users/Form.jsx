@@ -8,7 +8,7 @@ export default function Form({ user, roles }) {
         name: user?.name ?? '',
         email: isEdit ? undefined : '',
         phone: user?.phone ?? '',
-        role: user?.role ?? (roles[0]?.value ?? 'customer'),
+        role: user?.role ?? (roles[0]?.value ?? 'organizer'),
         password: '',
         is_active: user?.is_active ?? true,
     });
@@ -29,7 +29,7 @@ export default function Form({ user, roles }) {
 
             <Header
                 name={isEdit ? 'Edit Pengguna' : 'Tambah Pengguna'}
-                description={isEdit ? `Memperbarui akun ${user.name}.` : 'Buat akun baru untuk customer, organizer, atau gatekeeper.'}
+                description={isEdit ? `Memperbarui akun ${user.name}.` : 'Buat akun organizer baru.'}
             />
 
             <form onSubmit={submit} className="max-w-xl bg-white border border-slate-200/80 rounded-xl shadow-sm p-6">
@@ -66,19 +66,27 @@ export default function Form({ user, roles }) {
                         />
                     </Field>
 
-                    <Field label="Peran" error={errors.role}>
-                        <select
-                            value={data.role}
-                            onChange={(event) => setData('role', event.target.value)}
-                            className={inputClass(!!errors.role)}
-                        >
-                            {roles.map((role) => (
-                                <option key={role.value} value={role.value}>
-                                    {role.label}
-                                </option>
-                            ))}
-                        </select>
-                    </Field>
+                    {isEdit ? (
+                        <Field label="Peran" error={errors.role}>
+                            <select
+                                value={data.role}
+                                onChange={(event) => setData('role', event.target.value)}
+                                className={inputClass(!!errors.role)}
+                            >
+                                {roles.map((role) => (
+                                    <option key={role.value} value={role.value}>
+                                        {role.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </Field>
+                    ) : (
+                        <Field label="Peran">
+                            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                                {roles[0]?.label ?? 'Event Organizer'}
+                            </p>
+                        </Field>
+                    )}
 
                     <Field label={isEdit ? 'Password (kosongkan jika tidak diubah)' : 'Password'} error={errors.password}>
                         <input

@@ -35,25 +35,45 @@ class UserManagementFeatureTest extends TestCase
             ->assertJsonPath('data.0.name', 'Alice Wonder');
     }
 
-    public function test_admin_can_create_gatekeeper_account(): void
+    public function test_admin_can_create_organizer_account(): void
     {
         $admin = User::factory()->admin()->create();
 
         $response = $this->actingAs($admin, 'sanctum')
             ->postJson('/api/v1/admin/users', [
-                'name' => 'Petugas Gate A',
-                'email' => 'gate.a@example.com',
+                'name' => 'Organizer Baru',
+                'email' => 'organizer.baru@example.com',
                 'password' => 'secret123',
-                'role' => 'gatekeeper',
+                'role' => 'organizer',
             ]);
 
         $response->assertCreated()
-            ->assertJsonPath('data.role', 'gatekeeper');
+            ->assertJsonPath('data.role', 'organizer');
 
         $this->assertDatabaseHas('users', [
-            'email' => 'gate.a@example.com',
-            'role' => 'gatekeeper',
+            'email' => 'organizer.baru@example.com',
+            'role' => 'organizer',
         ]);
+    }
+
+    public function test_admin_cannot_create_customer_or_gatekeeper_accounts(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        foreach (['customer', 'gatekeeper'] as $role) {
+            $this->actingAs($admin, 'sanctum')
+                ->postJson('/api/v1/admin/users', [
+                    'name' => 'Akun '.$role,
+                    'email' => $role.'@example.com',
+                    'password' => 'secret123',
+                    'role' => $role,
+                ])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('role');
+        }
+
+        $this->assertDatabaseMissing('users', ['email' => 'customer@example.com']);
+        $this->assertDatabaseMissing('users', ['email' => 'gatekeeper@example.com']);
     }
 
     public function test_admin_cannot_create_another_admin(): void

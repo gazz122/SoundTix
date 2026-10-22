@@ -36,7 +36,7 @@ class AdminUserController extends Controller
     {
         return Inertia::render('Admin/Users/Form', [
             'user' => null,
-            'roles' => $this->manageableRoles(),
+            'roles' => $this->manageableRoles([UserRole::Organizer->value]),
         ]);
     }
 
@@ -87,12 +87,13 @@ class AdminUserController extends Controller
     }
 
     /**
+     * @param  array<int, string>|null  $only  Batasi ke peran tertentu; null berarti semua peran yang bisa dikelola.
      * @return array<int, array{value: string, label: string}>
      */
-    private function manageableRoles(): array
+    private function manageableRoles(?array $only = null): array
     {
         return collect(UserRole::cases())
-            ->filter(fn (UserRole $role) => in_array($role->value, UserRole::manageable(), true))
+            ->filter(fn (UserRole $role) => in_array($role->value, $only ?? UserRole::manageable(), true))
             ->map(fn (UserRole $role) => ['value' => $role->value, 'label' => $role->label()])
             ->values()
             ->all();

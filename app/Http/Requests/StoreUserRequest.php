@@ -30,7 +30,8 @@ class StoreUserRequest extends FormRequest
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')],
             'phone' => ['nullable', 'string', 'max:20'],
             'password' => ['required', 'string', Password::defaults()],
-            'role' => ['required', Rule::in(UserRole::manageable())],
+            // Admin hanya membuat akun organizer; peran lain tidak dibuat dari sini.
+            'role' => ['required', Rule::in([UserRole::Organizer->value])],
         ];
     }
 }
