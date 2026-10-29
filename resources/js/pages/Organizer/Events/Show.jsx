@@ -213,75 +213,47 @@ function Flash({ type, children }) {
 }
 
 function RundownSection({ event }) {
-    const { data, setData, post, processing, errors } = useForm({
+    const isMultiDay = event.duration_type === 'multi_day';
+    const lineup = event.lineup ?? [];
+    const days = event.event_days ?? [];
+
+    const { data, setData, post, processing, errors, reset } = useForm({
+        performer_id: '',
+        event_day_id: isMultiDay ? String(days[0]?.id ?? '') : '',
         title: '',
-        description: '',
         start_time: '',
         end_time: '',
+        description: '',
     });
 
     function add(eventSubmit) {
         eventSubmit.preventDefault();
-        post(`/organizer/events/${event.id}/rundowns`, { preserveScroll: true, onSuccess: () => setData({
-            title: '',
-            description: '',
-            start_time: '',
-            end_time: '',
-        }) });
+        post(`/organizer/events/${event.id}/rundowns`, {
+            preserveScroll: true,
+            onSuccess: () => reset(),
+        });
     }
 
-    function remove(id) {
-        router.delete(`/organizer/events/${event.id}/rundowns/${id}`, { preserveScroll: true });
-    }
+    const groups = isMultiDay
+        ? days.map((day) => ({
+              key: day.id,
+              label: `Day ${day.day_number} \u00b7 ${formatDate(day.date)}`,
+              items: event.rundowns.filter((rundown) => rundown.event_day_id === day.id),
+          }))
+        : [{ key: 'single', label: null, items: event.rundowns }];
 
     return (
         <div className="p-6">
             <form onSubmit={add} className="grid gap-4 rounded-lg border border-slate-200 bg-slate-50/50 p-4 sm:grid-cols-2">
-                <div className="space-y-1.5 sm:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700">Nama Sesi</label>
-                    <input
-                        type="text"
-                        value={data.title}
-                        onChange={(event) => setData('title', event.target.value)}
-                        placeholder="cth: Opening DJ / Penampilan Band Utama"
-                        className="w-full bg-white border border-slate-300 text-slate-900 placeholder-slate-400 rounded-lg px-4 py-2.5 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 transition-all"
-                    />
-                    {errors.title && <p className="text-sm text-rose-600">{errors.title}</p>}
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                        <label className="block text-sm font-medium text-slate-700">Jam Mulai</label>
-                        <input
-                            type="time"
-                            value={data.start_time}
-                            onChange={(event) => setData('start_time', event.target.value)}
-                            className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-4 py-2.5 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 transition-all"
-                        />
-                        {errors.start_time && <p className="text-sm text-rose-600">{errors.start_time}</p>}
-                    </div>
-                    <div className="space-y-1.5">
-                        <label className="block text-sm font-medium text-slate-700">Jam Selesai (opsional)</label>
-                        <input
-                            type="time"
-                            value={data.end_time}
-                            onChange={(event) => setData('end_time', event.target.value)}
-                            className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-4 py-2.5 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 transition-all"
-                        />
-                        {errors.end_time && <p className="text-sm text-rose-600">{errors.end_time}</p>}
-                    </div>
-                </div>
-                <div className="space-y-1.5">
-                    <label className="block text-sm font-medium text-slate-700">Deskripsi Sesi (opsional)</label>
-                    <input
-                        type="text"
-                        value={data.description}
-                        onChange={(event) => setData('description', event.target.value)}
-                        placeholder="Keterangan singkat sesi"
-                        className="w-full bg-white border border-slate-300 text-slate-900 placeholder-slate-400 rounded-lg px-4 py-2.5 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 transition-all"
-                    />
-                    {errors.description && <p className="text-sm text-rose-600">{errors.description}</p>}
-                </div>
-                <div className="flex items-end">
+                <RundownFields
+                    data={data}
+                    setData={setData}
+                    errors={errors}
+                    lineup={lineup}
+                    days={days}
+                    isMultiDay={isMultiDay}
+                />
+                <div className="flex items-end sm:col-span-2">
                     <button
                         type="submit"
                         disabled={processing}
@@ -295,34 +267,222 @@ function RundownSection({ event }) {
             {event.rundowns.length === 0 ? (
                 <p className="py-8 text-center text-sm text-slate-400">Belum ada sesi rundown untuk event ini.</p>
             ) : (
-                <ul className="mt-5 space-y-2.5">
-                    {event.rundowns.map((rundown) => (
-                        <li
-                            key={rundown.id}
-                            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 px-4 py-3"
-                        >
-                            <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                    <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
-                                        {rundown.start_time}{rundown.end_time ? ` - ${rundown.end_time}` : ''}
-                                    </span>
-                                    <p className="font-medium text-slate-900">{rundown.title}</p>
-                                </div>
-                                {rundown.description && (
-                                    <p className="mt-1 text-sm text-slate-500">{rundown.description}</p>
+                <div className="mt-5 space-y-5">
+                    {groups
+                        .filter((group) => group.items.length > 0)
+                        .map((group) => (
+                            <div key={group.key}>
+                                {group.label && (
+                                    <p className="mb-2 text-sm font-semibold text-indigo-600">{group.label}</p>
                                 )}
+                                <ul className="space-y-2.5">
+                                    {group.items.map((rundown) => (
+                                        <RundownRow
+                                            key={rundown.id}
+                                            event={event}
+                                            rundown={rundown}
+                                            lineup={lineup}
+                                            days={days}
+                                            isMultiDay={isMultiDay}
+                                        />
+                                    ))}
+                                </ul>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => remove(rundown.id)}
-                                className="text-sm font-medium text-rose-600 hover:text-rose-700"
-                            >
-                                Hapus
-                            </button>
-                        </li>
-                    ))}
-                </ul>
+                        ))}
+                </div>
             )}
         </div>
+    );
+}
+
+function RundownFields({ data, setData, errors, lineup, days, isMultiDay }) {
+    const inputClass =
+        'w-full bg-white border border-slate-300 text-slate-900 placeholder-slate-400 rounded-lg px-4 py-2.5 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 transition-all';
+
+    return (
+        <>
+            <div className={`space-y-1.5 ${isMultiDay ? '' : 'sm:col-span-2'}`}>
+                <label className="block text-sm font-medium text-slate-700">Band / Pengisi Acara</label>
+                <select
+                    value={data.performer_id}
+                    onChange={(event) => setData('performer_id', event.target.value)}
+                    className={inputClass}
+                >
+                    <option value="">Non-band / sesi lainnya</option>
+                    {lineup.map((performer) => (
+                        <option key={performer.id} value={performer.id}>
+                            {performer.name}
+                        </option>
+                    ))}
+                </select>
+                {lineup.length === 0 && (
+                    <p className="text-xs text-slate-400">Belum ada band di line-up. Tambahkan lewat Edit Event.</p>
+                )}
+                {errors.performer_id && <p className="text-sm text-rose-600">{errors.performer_id}</p>}
+            </div>
+
+            {isMultiDay && (
+                <div className="space-y-1.5">
+                    <label className="block text-sm font-medium text-slate-700">Hari</label>
+                    <select
+                        value={data.event_day_id}
+                        onChange={(event) => setData('event_day_id', event.target.value)}
+                        className={inputClass}
+                    >
+                        {days.map((day) => (
+                            <option key={day.id} value={day.id}>
+                                Day {day.day_number} {'\u00b7'} {formatDate(day.date)}
+                            </option>
+                        ))}
+                    </select>
+                    {errors.event_day_id && <p className="text-sm text-rose-600">{errors.event_day_id}</p>}
+                </div>
+            )}
+
+            <div className="space-y-1.5 sm:col-span-2">
+                <label className="block text-sm font-medium text-slate-700">Nama Sesi</label>
+                <input
+                    type="text"
+                    value={data.title}
+                    onChange={(event) => setData('title', event.target.value)}
+                    placeholder="cth: Main Set / Opening DJ"
+                    className={inputClass}
+                />
+                <p className="text-xs text-slate-400">Kosongkan jika ingin memakai nama band.</p>
+                {errors.title && <p className="text-sm text-rose-600">{errors.title}</p>}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 sm:col-span-2">
+                <div className="space-y-1.5">
+                    <label className="block text-sm font-medium text-slate-700">Jam Mulai</label>
+                    <input
+                        type="time"
+                        value={data.start_time}
+                        onChange={(event) => setData('start_time', event.target.value)}
+                        className={inputClass}
+                    />
+                    {errors.start_time && <p className="text-sm text-rose-600">{errors.start_time}</p>}
+                </div>
+                <div className="space-y-1.5">
+                    <label className="block text-sm font-medium text-slate-700">Jam Selesai (opsional)</label>
+                    <input
+                        type="time"
+                        value={data.end_time}
+                        onChange={(event) => setData('end_time', event.target.value)}
+                        className={inputClass}
+                    />
+                    {errors.end_time && <p className="text-sm text-rose-600">{errors.end_time}</p>}
+                </div>
+            </div>
+
+            <div className="space-y-1.5 sm:col-span-2">
+                <label className="block text-sm font-medium text-slate-700">Catatan Sesi (opsional)</label>
+                <input
+                    type="text"
+                    value={data.description}
+                    onChange={(event) => setData('description', event.target.value)}
+                    placeholder="Keterangan singkat sesi"
+                    className={inputClass}
+                />
+                {errors.description && <p className="text-sm text-rose-600">{errors.description}</p>}
+            </div>
+        </>
+    );
+}
+
+function RundownRow({ event, rundown, lineup, days, isMultiDay }) {
+    const [editing, setEditing] = useState(false);
+
+    const { data, setData, put, processing, errors } = useForm({
+        performer_id: rundown.performer_id ? String(rundown.performer_id) : '',
+        event_day_id: rundown.event_day_id ? String(rundown.event_day_id) : '',
+        title: rundown.title ?? '',
+        start_time: rundown.start_time,
+        end_time: rundown.end_time ?? '',
+        description: rundown.description ?? '',
+    });
+
+    function save(eventSubmit) {
+        eventSubmit.preventDefault();
+        put(`/organizer/events/${event.id}/rundowns/${rundown.id}`, {
+            preserveScroll: true,
+            onSuccess: () => setEditing(false),
+        });
+    }
+
+    function remove() {
+        router.delete(`/organizer/events/${event.id}/rundowns/${rundown.id}`, { preserveScroll: true });
+    }
+
+    if (editing) {
+        return (
+            <li className="rounded-lg border border-indigo-200 bg-indigo-50/40 p-4">
+                <form onSubmit={save} className="grid gap-3 sm:grid-cols-2">
+                    <RundownFields
+                        data={data}
+                        setData={setData}
+                        errors={errors}
+                        lineup={lineup}
+                        days={days}
+                        isMultiDay={isMultiDay}
+                    />
+                    <div className="flex items-center gap-2 sm:col-span-2">
+                        <button
+                            type="submit"
+                            disabled={processing}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-all shadow-sm disabled:opacity-60"
+                        >
+                            {processing ? 'Menyimpan...' : 'Simpan Perubahan'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setEditing(false)}
+                            className="text-sm font-medium text-slate-600 hover:text-slate-800"
+                        >
+                            Batal
+                        </button>
+                    </div>
+                </form>
+            </li>
+        );
+    }
+
+    return (
+        <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 px-4 py-3">
+            <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+                        {rundown.start_time}
+                        {rundown.end_time ? ` - ${rundown.end_time}` : ''}
+                    </span>
+                    <p className="font-medium text-slate-900">{rundown.performer_name ?? rundown.title}</p>
+                    {rundown.performer_genre && (
+                        <span className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs font-medium text-slate-600">
+                            {rundown.performer_genre}
+                        </span>
+                    )}
+                </div>
+                {rundown.performer_name && rundown.title && (
+                    <p className="mt-1 text-sm text-slate-600">{rundown.title}</p>
+                )}
+                {rundown.description && <p className="mt-1 text-sm text-slate-500">{rundown.description}</p>}
+            </div>
+            <div className="flex items-center gap-3">
+                <button
+                    type="button"
+                    onClick={() => setEditing(true)}
+                    className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                >
+                    Edit
+                </button>
+                <button
+                    type="button"
+                    onClick={remove}
+                    className="text-sm font-medium text-rose-600 hover:text-rose-700"
+                >
+                    Hapus
+                </button>
+            </div>
+        </li>
     );
 }

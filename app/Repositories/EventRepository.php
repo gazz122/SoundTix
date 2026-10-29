@@ -43,7 +43,7 @@ class EventRepository
     {
         return Event::query()
             ->published()
-            ->with(['performers', 'ticketCategories.eventDay', 'eventDays', 'organizer', 'rundowns'])
+            ->with(['performers', 'ticketCategories.eventDay', 'eventDays', 'organizer', 'rundowns.performer', 'rundowns.eventDay'])
             ->when($userId !== null, fn ($query) => $query->withExists(['savedByUsers' => fn ($query) => $query->where('saved_events.user_id', $userId)]))
             ->where('slug', $slug)
             ->firstOrFail();

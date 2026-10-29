@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Event;
+use App\Models\Performer;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -156,5 +157,150 @@ class RundownManagementFeatureTest extends TestCase
                     ->where('event.open_gate', '2026-12-01 18:00')
                     ->where('event.close_gate', '2026-12-01 23:00'),
             );
+    }
+
+    public function test_organizer_can_assign_a_performer_to_a_rundown_session(): void
+    {
+        $organizer = $this->organizer();
+        $event = $this->publishedEvent($organizer);
+        $performer = $event->performers()->firstOrFail();
+
+        $this->actingAs($organizer)
+            ->post("/organizer/events/{$event->id}/rundowns", [
+                'performer_id' => $performer->id,
+                'start_time' => '20:00',
+                'end_time' => '21:00',
+            ])
+            ->assertRedirect("organizer/events/{$event->id}");
+
+        $this->assertDatabaseHas('event_rundowns', [
+            'event_id' => $event->id,
+            'performer_id' => $performer->id,
+            'title' => null,
+            'start_time' => '20:00',
+        ]);
+    }
+
+    public function test_organizer_rundown_page_exposes_the_lineup_and_schedule_details(): void
+    {
+        $organizer = $this->organizer();
+        $event = $this->publishedEvent($organizer);
+        $performer = $event->performers()->firstOrFail();
+        $event->rundowns()->create(['performer_id' => $performer->id, 'start_time' => '20:00']);
+
+        $this->actingAs($organizer)
+            ->get("/organizer/events/{$event->id}")
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->component('Organizer/Events/Show')
+                    ->has('event.lineup')
+                    ->where('event.rundowns.0.performer_name', $performer->name),
+            );
+    }
+
+    public function test_organizer_cannot_assign_a_performer_outside_the_event_lineup(): void
+    {
+        $organizer = $this->organizer();
+        $event = $this->publishedEvent($organizer);
+        $foreignPerformer = Performer::factory()->create();
+
+        $this->actingAs($organizer)
+            ->post("/organizer/events/{$event->id}/rundowns", [
+                'performer_id' => $foreignPerformer->id,
+                'start_time' => '20:00',
+            ])
+            ->assertSessionHasErrors('performer_id');
+
+        $this->assertDatabaseCount('event_rundowns', 0);
+    }
+
+    public function test_rundown_requires_a_title_or_a_performer(): void
+    {
+        $organizer = $this->organizer();
+        $event = $this->publishedEvent($organizer);
+
+        $this->actingAs($organizer)
+            ->post("/organizer/events/{$event->id}/rundowns", ['start_time' => '20:00'])
+            ->assertSessionHasErrors(['title', 'performer_id']);
+    }
+
+    public function test_organizer_can_reschedule_a_performer_and_buyers_see_the_new_time(): void
+    {
+        $organizer = $this->organizer();
+        $event = $this->publishedEvent($organizer);
+        $performer = $event->performers()->firstOrFail();
+        $rundown = $event->rundowns()->create([
+            'performer_id' => $performer->id,
+            'start_time' => '20:00',
+            'end_time' => '21:00',
+        ]);
+
+        $this->actingAs($organizer)
+            ->put("/organizer/events/{$event->id}/rundowns/{$rundown->id}", [
+                'performer_id' => $performer->id,
+                'start_time' => '20:30',
+                'end_time' => '21:30',
+            ])
+            ->assertRedirect("organizer/events/{$event->id}");
+
+        $this->get("/events/{$event->slug}")
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->where('event.rundowns.0.start_time', '20:30')
+                    ->where('event.rundowns.0.end_time', '21:30')
+                    ->where('event.rundowns.0.performer.name', $performer->name),
+            );
+    }
+
+    public function test_rundowns_are_listed_in_start_time_order(): void
+    {
+        $organizer = $this->organizer();
+        $event = $this->publishedEvent($organizer);
+
+        foreach (['21:00' => 'Closing', '19:00' => 'Opening', '20:00' => 'Main'] as $time => $title) {
+            $event->rundowns()->create(['start_time' => $time, 'title' => $title]);
+        }
+
+        $this->get("/events/{$event->slug}")
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->where('event.rundowns.0.title', 'Opening')
+                    ->where('event.rundowns.1.title', 'Main')
+                    ->where('event.rundowns.2.title', 'Closing'),
+            );
+    }
+
+    public function test_multi_day_rundowns_require_a_day_and_keep_their_day_reference(): void
+    {
+        $organizer = $this->organizer();
+        $event = Event::factory()->published()->create([
+            'organizer_id' => $organizer->id,
+            'duration_type' => 'multi_day',
+            'total_days' => 2,
+        ]);
+        $event->eventDays()->create(['day_number' => 1, 'date' => '2026-12-01']);
+        $dayTwo = $event->eventDays()->create(['day_number' => 2, 'date' => '2026-12-02']);
+
+        $this->actingAs($organizer)
+            ->post("/organizer/events/{$event->id}/rundowns", [
+                'start_time' => '19:00',
+                'title' => 'Opening',
+            ])
+            ->assertSessionHasErrors('event_day_id');
+
+        $this->actingAs($organizer)
+            ->post("/organizer/events/{$event->id}/rundowns", [
+                'event_day_id' => $dayTwo->id,
+                'start_time' => '19:00',
+                'title' => 'Opening',
+            ])
+            ->assertRedirect("organizer/events/{$event->id}");
+
+        $this->assertDatabaseHas('event_rundowns', [
+            'event_id' => $event->id,
+            'event_day_id' => $dayTwo->id,
+        ]);
     }
 }

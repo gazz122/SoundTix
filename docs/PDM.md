@@ -2,14 +2,14 @@
 
 Dokumen ini adalah lanjutan fisik dari [CDM](./CDM.md). CDM menjawab "entitas apa saja dan saling berhubungan bagaimana"; PDM menjawab "kolom apa, tipe apa, boleh kosong atau tidak, default-nya apa, dan apa yang benar-benar dijaga oleh database".
 
-Semua angka dan tipe di bawah ini dibaca langsung dari `information_schema` database `soundtix` yang berjalan (MariaDB 10.4.32) pada 22 Oktober 2026 — bukan hasil hitung manual:
+Semua angka dan tipe di bawah ini dibaca langsung dari `information_schema` database `soundtix` yang berjalan (MariaDB 10.4.32) pada 30 Oktober 2026 — bukan hasil hitung manual:
 
 | Cakupan | Jumlah |
 |---|---|
 | Tabel domain | **19** |
-| Kolom | **189** |
-| Foreign key | **24** |
-| Index (termasuk primary key) | **52** |
+| Kolom | **191** |
+| Foreign key | **26** |
+| Index (termasuk primary key) | **54** |
 
 Sembilan tabel framework Laravel sengaja tidak dihitung dan didaftar di bagian 11.
 
@@ -34,6 +34,8 @@ erDiagram
     events ||--o{ event_days : "event_id"
     events ||--o{ event_performers : "event_id"
     events ||--o{ event_rundowns : "event_id"
+    event_days |o--o{ event_rundowns : "event_day_id"
+    performers |o--o{ event_rundowns : "performer_id"
     events ||--o{ payouts : "event_id"
     events ||--o{ saved_events : "event_id"
     events ||--o{ ticket_categories : "event_id"
@@ -64,7 +66,7 @@ Tabel `banners` dan `notifications` berdiri sendiri: keduanya tidak punya foreig
 | 1 | `users` | Akun | 15 | 0 | 7 | Akun semua peran. Satu tabel untuk admin, organizer, customer, dan gatekeeper; peran dibedakan kolom `role`. |
 | 2 | `events` | Event | 21 | 1 | 6 | Event yang dijual. Dimiliki satu organizer dan harus disetujui admin sebelum tayang. |
 | 3 | `event_days` | Event | 8 | 1 | 2 | Rincian hari untuk event multi-day. Event single day tidak memakai tabel ini. |
-| 4 | `event_rundowns` | Event | 8 | 1 | 0 | Susunan acara per event. |
+| 4 | `event_rundowns` | Event | 10 | 3 | 0 | Susunan acara per event, termasuk band dan hari tampil. |
 | 5 | `performers` | Event | 6 | 0 | 1 | Master pengisi acara, dipakai bersama oleh banyak event. |
 | 6 | `event_performers` | Event | 2 | 2 | 0 | Tabel pivot banyak-ke-banyak antara event dan performer. |
 | 7 | `ticket_categories` | Event | 12 | 2 | 1 | Jenis tiket per event, termasuk kuota awal dan sisa stok. |
@@ -162,22 +164,26 @@ Rincian hari untuk event multi-day. Event single day tidak memakai tabel ini.
 
 ### 4.4 `event_rundowns`
 
-Susunan acara per event.
+Susunan acara per event. Satu baris bisa menunjuk ke satu performer (band) dan/atau satu hari pada event multi-day; sesi non-band cukup memakai `title`.
 
 | Kolom | Tipe | Null | Default | Key | Keterangan |
 |---|---|---|---|---|---|
 | `id` | bigint unsigned | tidak | — | PK |  |
 | `event_id` | bigint unsigned | tidak | — | FK → `events.id` |  |
+| `performer_id` | bigint unsigned | ya | NULL | FK → `performers.id` | Band yang tampil pada sesi ini. NULL untuk sesi non-band. |
+| `event_day_id` | bigint unsigned | ya | NULL | FK → `event_days.id` | Hari pelaksanaan untuk event multi-day. NULL untuk event single day. |
 | `start_time` | time | tidak | — |  | Jam mulai sesi. |
 | `end_time` | time | ya | NULL |  | Jam selesai sesi, opsional. |
-| `title` | varchar(255) | tidak | — |  |  |
+| `title` | varchar(255) | ya | NULL |  | Nama sesi. NULL kalau sesi memakai nama band. |
 | `description` | text | ya | NULL |  |  |
 | `created_at` | timestamp | ya | NULL |  |  |
 | `updated_at` | timestamp | ya | NULL |  |  |
 
 - **Primary key:** `(id)`
 - **FK:** `event_id` → `events.id` — ON DELETE CASCADE, ON UPDATE RESTRICT
-- **Index:** `(event_id)`
+- **FK:** `performer_id` → `performers.id` — ON DELETE SET NULL, ON UPDATE RESTRICT
+- **FK:** `event_day_id` → `event_days.id` — ON DELETE CASCADE, ON UPDATE RESTRICT
+- **Index:** `(event_id, event_day_id, start_time)`, `(performer_id)`, `(event_day_id)`
 
 ### 4.5 `performers`
 
@@ -493,14 +499,16 @@ Butir pertanyaan dan jawaban.
 - **FK:** `category_id` → `faq_categories.id` — ON DELETE CASCADE, ON UPDATE RESTRICT
 - **Index:** `(category_id, order)`
 
-## 5. Daftar foreign key (24)
+## 5. Daftar foreign key (26)
 
 | Tabel | Kolom | Null | Mengacu ke | ON DELETE | ON UPDATE |
 |---|---|---|---|---|---|
 | `event_days` | `event_id` | tidak | `events.id` | CASCADE | RESTRICT |
 | `event_performers` | `event_id` | tidak | `events.id` | CASCADE | RESTRICT |
 | `event_performers` | `performer_id` | tidak | `performers.id` | CASCADE | RESTRICT |
+| `event_rundowns` | `event_day_id` | ya | `event_days.id` | CASCADE | RESTRICT |
 | `event_rundowns` | `event_id` | tidak | `events.id` | CASCADE | RESTRICT |
+| `event_rundowns` | `performer_id` | ya | `performers.id` | SET NULL | RESTRICT |
 | `events` | `organizer_id` | tidak | `users.id` | CASCADE | RESTRICT |
 | `faqs` | `category_id` | tidak | `faq_categories.id` | CASCADE | RESTRICT |
 | `order_items` | `order_id` | tidak | `orders.id` | CASCADE | RESTRICT |
@@ -525,10 +533,10 @@ Butir pertanyaan dan jawaban.
 Aturan hapus yang dipakai konsisten:
 
 - **CASCADE** untuk rantai kepemilikan: menghapus event ikut menghapus hari, rundown, kategori tiket, dan pivot performer; menghapus order ikut menghapus item, payment, dan refund.
-- **SET NULL** untuk pelaku, bukan pemilik data: admin yang memproses payout, gatekeeper yang memvalidasi, dan payment yang mendasari refund. Menghapus akun tidak boleh menghapus riwayat uang.
+- **SET NULL** untuk pelaku, bukan pemilik data: admin yang memproses payout, gatekeeper yang memvalidasi, payment yang mendasari refund, dan performer yang dihapus dari master. Menghapus akun atau performer tidak boleh menghapus riwayat uang maupun jadwal.
 - **RESTRICT** untuk master data yang masih dipakai: order item menahan penghapusan kategori tiket, dan kategori tiket menahan penghapusan hari event. Ini mencegah riwayat penjualan kehilangan acuannya.
 
-## 6. Daftar index (52)
+## 6. Daftar index (54)
 
 | Tabel | Index | Unik | Kolom |
 |---|---|---|---|
@@ -541,7 +549,9 @@ Aturan hapus yang dipakai konsisten:
 | `event_days` | `PRIMARY` | ya | `id` |
 | `event_performers` | `event_performers_performer_id_foreign` | tidak | `performer_id` |
 | `event_performers` | `PRIMARY` | ya | `event_id, performer_id` |
-| `event_rundowns` | `event_rundowns_event_id_foreign` | tidak | `event_id` |
+| `event_rundowns` | `event_rundowns_event_day_id_foreign` | tidak | `event_day_id` |
+| `event_rundowns` | `event_rundowns_performer_id_foreign` | tidak | `performer_id` |
+| `event_rundowns` | `event_rundowns_schedule_index` | tidak | `event_id, event_day_id, start_time` |
 | `event_rundowns` | `PRIMARY` | ya | `id` |
 | `faqs` | `faqs_category_id_order_index` | tidak | `category_id, order` |
 | `faqs` | `PRIMARY` | ya | `id` |
@@ -660,6 +670,8 @@ Tambahkan saat data tumbuh, bukan sekarang: index yang tidak terpakai tetap memb
 - `users` punya dua penanda verifikasi: `email_verified_at` bawaan Laravel dan `is_verified` yang dipakai alur OTP. Yang menjadi gerbang login adalah `is_verified`.
 - `notifications.id` adalah UUID `char(36)`, bukan bigint seperti tabel lain.
 - Bank yang dipilih pembeli tidak punya kolom sendiri. Yang tersimpan hanya `payments.payment_type = 'bank_transfer'`; bank dan nomor VA-nya ada di dalam `payments.raw_response`.
+- `event_rundowns.title` boleh `NULL` hanya kalau `performer_id` terisi. Aturan "judul atau band" dijaga `RundownController`, bukan constraint database.
+- `event_rundowns.event_day_id` wajib terisi untuk event `multi_day` dan harus `NULL` untuk event `single`; database hanya menjaga foreign key-nya, kewajiban per tipe event dijaga aplikasi.
 
 ## 11. Tabel framework (di luar model)
 

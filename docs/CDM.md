@@ -8,7 +8,7 @@
 - users (id, name, email, email_verified_at, is_verified, password, phone, role, is_active, remember_token, otp_hash, otp_expires_at, deleted_at, timestamps)
 - events (id, organizer_id, title, slug, description, banner_path, venue_name, city, address, event_date, duration_type, total_days, start_time, end_time, open_gate, close_gate, status, rejection_reason, cancellation_reason, timestamps)
 - event_days (id, event_id, day_number, date, open_gate, close_gate, timestamps)
-- event_rundowns (id, event_id, title, description, start_time, end_time, timestamps)
+- event_rundowns (id, event_id, performer_id, event_day_id, title, description, start_time, end_time, timestamps)
 - performers (id, name, genre, image_path, timestamps)
 - event_performers (event_id, performer_id)
 - ticket_categories (id, event_id, name, access_type, event_day_id, description, price, total_quantity, available_quantity, max_per_order, timestamps)
@@ -33,7 +33,7 @@
 - Event belongsToMany Performer through event_performers
 - Event belongsToMany User through saved_events (savedByUsers)
 - EventDay belongsTo Event, hasMany TicketCategory, hasMany TicketScan
-- EventRundown belongsTo Event
+- EventRundown belongsTo Event, belongsTo Performer (nullable), belongsTo EventDay (nullable)
 - TicketCategory belongsTo Event, belongsTo EventDay (nullable), hasMany OrderItem
 - Order belongsTo Customer (User), hasMany OrderItem, hasMany Payment, hasMany Refund
 - OrderItem belongsTo Order, belongsTo TicketCategory, hasMany Ticket
@@ -86,3 +86,5 @@ migrations, sessions, cache, cache_locks, jobs, job_batches, failed_jobs, passwo
 - Only users uses soft deletes (deleted_at). events and orders have no deleted_at column.
 - faqs publishes through the boolean is_published; there is no FAQStatus enum.
 - A refund has no direct event_id. It reaches an event through order -> order_item -> ticket_category -> event, so there is no Event hasMany Refund relationship.
+- A rundown session points to at most one performer and at most one event day. A session without a performer keeps its own title; the "title or performer" rule is enforced in the controller, not the database.
+- Rundown edits are live: buyers see the organizer's latest times on the event page, which polls every 30 seconds while the event day is running.

@@ -21,6 +21,7 @@ class EventDetailResource extends EventResource
             'duration_type' => $this->duration_type,
             'event_days' => $this->eventDays
                 ->map(fn (EventDay $day) => [
+                    'id' => $day->id,
                     'day_number' => $day->day_number,
                     'date' => $day->date?->format('Y-m-d'),
                     'open_gate' => $this->wib($day->open_gate, 'Y-m-d H:i'),
@@ -48,6 +49,13 @@ class EventDetailResource extends EventResource
                 'end_time' => $rundown->end_time !== null ? substr((string) $rundown->end_time, 0, 5) : null,
                 'title' => $rundown->title,
                 'description' => $rundown->description,
+                'event_day_id' => $rundown->event_day_id,
+                'performer' => $rundown->performer === null ? null : [
+                    'id' => $rundown->performer->id,
+                    'name' => $rundown->performer->name,
+                    'genre' => $rundown->performer->genre,
+                ],
+                'updated_at' => $rundown->updated_at?->toIso8601String(),
             ])
             ->values()
             ->all();

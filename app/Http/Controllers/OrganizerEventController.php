@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Enums\EventStatus;
 use App\Models\Event;
 use App\Models\EventDay;
+use App\Models\EventRundown;
+use App\Models\Performer;
 use App\Models\Refund;
 use App\Repositories\EventRepository;
 use App\Repositories\PerformerRepository;
@@ -40,7 +42,11 @@ class OrganizerEventController extends Controller
     public function show(Request $request, int $id): Response
     {
         $event = $this->events->findOwnedByOrganizer($request->user()->id, $id);
-        $event->loadCount('ticketCategories')->load(['performers:id,name', 'rundowns']);
+        $event->loadCount('ticketCategories')->load([
+            'performers:id,name,genre',
+            'rundowns.performer:id,name,genre',
+            'rundowns.eventDay',
+        ]);
 
         $refunds = Refund::query()
             ->whereHas('order.orderItems.ticketCategory.event', fn ($query) => $query->whereKey($id))
@@ -61,6 +67,14 @@ class OrganizerEventController extends Controller
             ->all();
 
         $data = $this->serialize($event);
+        $data['lineup'] = $event->performers
+            ->map(fn (Performer $performer) => [
+                'id' => $performer->id,
+                'name' => $performer->name,
+                'genre' => $performer->genre,
+            ])
+            ->values()
+            ->all();
         $data['cancellable'] = $event->status === EventStatus::Published->value
             && ($event->event_date === null || ! $event->event_date->isPast());
         $data['cancellation_reason'] = $event->cancellation_reason;
@@ -371,6 +385,7 @@ class OrganizerEventController extends Controller
             'total_days' => $event->total_days,
             'event_days' => $event->eventDays
                 ->map(fn (EventDay $day) => [
+                    'id' => $day->id,
                     'day_number' => $day->day_number,
                     'date' => $day->date?->format('Y-m-d'),
                     'open_gate' => $this->wibInput($day->open_gate),
@@ -384,16 +399,22 @@ class OrganizerEventController extends Controller
             'close_gate' => $this->wibInput($event->close_gate),
             'open_gate_label' => $this->wibLabel($event->open_gate),
             'close_gate_label' => $this->wibLabel($event->close_gate),
-            'rundowns' => $event->rundowns
-                ->map(fn ($rundown) => [
-                    'id' => $rundown->id,
-                    'start_time' => substr((string) $rundown->start_time, 0, 5),
-                    'end_time' => $rundown->end_time !== null ? substr((string) $rundown->end_time, 0, 5) : null,
-                    'title' => $rundown->title,
-                    'description' => $rundown->description,
-                ])
-                ->values()
-                ->all(),
+            'rundowns' => $event->relationLoaded('rundowns')
+                ? $event->rundowns
+                    ->map(fn (EventRundown $rundown) => [
+                        'id' => $rundown->id,
+                        'start_time' => substr((string) $rundown->start_time, 0, 5),
+                        'end_time' => $rundown->end_time !== null ? substr((string) $rundown->end_time, 0, 5) : null,
+                        'title' => $rundown->title,
+                        'description' => $rundown->description,
+                        'performer_id' => $rundown->performer_id,
+                        'performer_name' => $rundown->performer?->name,
+                        'performer_genre' => $rundown->performer?->genre,
+                        'event_day_id' => $rundown->event_day_id,
+                    ])
+                    ->values()
+                    ->all()
+                : [],
             'status' => $event->status,
             'status_label' => EventStatus::from($event->status)->label(),
             'rejection_reason' => $event->rejection_reason,
