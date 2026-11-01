@@ -8,6 +8,8 @@ import { formatDate, rupiah } from '@/lib/format';
 const MAX_TICKETS_PER_ORDER = 5;
 
 function formatGate(value) {
+    if (!value) return '';
+
     const [datePart, timePart] = value.split(' ');
     return `${formatDate(datePart)} ${timePart} WIB`;
 }
@@ -93,7 +95,8 @@ export default function Show({ event }) {
                                 )
                             ) : event.open_gate ? (
                                 <p className="mt-1 text-sm font-medium text-indigo-600">
-                                    Pintu dibuka {formatGate(event.open_gate)} · ditutup {formatGate(event.close_gate)}
+                                    Pintu dibuka {formatGate(event.open_gate)}
+                                    {event.close_gate && ` · ditutup ${formatGate(event.close_gate)}`}
                                 </p>
                             ) : null}
                             <p className="text-sm text-slate-400">

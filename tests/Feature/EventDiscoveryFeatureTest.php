@@ -129,6 +129,23 @@ class EventDiscoveryFeatureTest extends TestCase
             );
     }
 
+    public function test_published_event_detail_renders_when_close_gate_is_missing(): void
+    {
+        $event = Event::factory()->published()->create([
+            'open_gate' => '2026-11-02 05:23:00',
+            'close_gate' => null,
+        ]);
+
+        $this->get('/events/'.$event->slug)
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->component('Events/Show')
+                    ->where('event.open_gate', '2026-11-02 12:23')
+                    ->where('event.close_gate', null),
+            );
+    }
+
     public function test_unpublished_event_detail_is_not_accessible(): void
     {
         $draft = Event::factory()->draft()->create();
