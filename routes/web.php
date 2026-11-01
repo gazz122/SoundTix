@@ -76,6 +76,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/reports/print', [OrganizerReportController::class, 'print'])->name('reports.print');
 
         Route::post('/events/{event}/rundowns', [RundownController::class, 'store'])->name('events.rundowns.store');
+        Route::put('/events/{event}/rundowns/reorder', [RundownController::class, 'reorder'])->name('events.rundowns.reorder');
         Route::put('/events/{event}/rundowns/{rundown}', [RundownController::class, 'update'])->name('events.rundowns.update');
         Route::delete('/events/{event}/rundowns/{rundown}', [RundownController::class, 'destroy'])->name('events.rundowns.destroy');
 

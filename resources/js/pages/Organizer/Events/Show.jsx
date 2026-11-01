@@ -1,4 +1,5 @@
 import { Link, router, useForm, usePage } from '@inertiajs/react';
+import { ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
 import { useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import StatusBadge from '@/components/StatusBadge';
@@ -216,6 +217,7 @@ function RundownSection({ event }) {
     const isMultiDay = event.duration_type === 'multi_day';
     const lineup = event.lineup ?? [];
     const days = event.event_days ?? [];
+    const [draggingId, setDraggingId] = useState(null);
 
     const { data, setData, post, processing, errors, reset } = useForm({
         performer_id: '',
@@ -232,6 +234,42 @@ function RundownSection({ event }) {
             preserveScroll: true,
             onSuccess: () => reset(),
         });
+    }
+
+    function submitOrder(ids) {
+        router.put(
+            `/organizer/events/${event.id}/rundowns/reorder`,
+            { ids },
+            { preserveScroll: true, onFinish: () => setDraggingId(null) },
+        );
+    }
+
+    function move(items, index, direction) {
+        const target = index + direction;
+        if (target < 0 || target >= items.length) {
+            return;
+        }
+
+        const ids = items.map((item) => item.id);
+        [ids[index], ids[target]] = [ids[target], ids[index]];
+        submitOrder(ids);
+    }
+
+    function drop(items, targetId) {
+        if (draggingId === null || draggingId === targetId) {
+            return;
+        }
+
+        const ids = items.map((item) => item.id);
+        const from = ids.indexOf(draggingId);
+        const to = ids.indexOf(targetId);
+
+        if (from === -1 || to === -1) {
+            return;
+        }
+
+        ids.splice(to, 0, ids.splice(from, 1)[0]);
+        submitOrder(ids);
     }
 
     const groups = isMultiDay
@@ -276,7 +314,7 @@ function RundownSection({ event }) {
                                     <p className="mb-2 text-sm font-semibold text-indigo-600">{group.label}</p>
                                 )}
                                 <ul className="space-y-2.5">
-                                    {group.items.map((rundown) => (
+                                    {group.items.map((rundown, index) => (
                                         <RundownRow
                                             key={rundown.id}
                                             event={event}
@@ -284,6 +322,22 @@ function RundownSection({ event }) {
                                             lineup={lineup}
                                             days={days}
                                             isMultiDay={isMultiDay}
+                                            isFirst={index === 0}
+                                            isLast={index === group.items.length - 1}
+                                            isDragging={draggingId === rundown.id}
+                                            onMoveUp={() => move(group.items, index, -1)}
+                                            onMoveDown={() => move(group.items, index, 1)}
+                                            onDragStart={(dragEvent) => {
+                                                dragEvent.dataTransfer.effectAllowed = 'move';
+                                                dragEvent.dataTransfer.setData('text/plain', String(rundown.id));
+                                                setDraggingId(rundown.id);
+                                            }}
+                                            onDragEnd={() => setDraggingId(null)}
+                                            onDragOver={(dragEvent) => {
+                                                dragEvent.preventDefault();
+                                                dragEvent.dataTransfer.dropEffect = 'move';
+                                            }}
+                                            onDrop={() => drop(group.items, rundown.id)}
                                         />
                                     ))}
                                 </ul>
@@ -340,7 +394,7 @@ function RundownFields({ data, setData, errors, lineup, days, isMultiDay }) {
             )}
 
             <div className="space-y-1.5 sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700">Nama Sesi</label>
+                <label className="block text-sm font-medium text-slate-700">Nama Panggung</label>
                 <input
                     type="text"
                     value={data.title}
@@ -348,7 +402,7 @@ function RundownFields({ data, setData, errors, lineup, days, isMultiDay }) {
                     placeholder="cth: Main Set / Opening DJ"
                     className={inputClass}
                 />
-                <p className="text-xs text-slate-400">Kosongkan jika ingin memakai nama band.</p>
+                <p className="text-xs text-slate-400">Nama yang tampil di jadwal pembeli. Kosongkan jika ingin memakai nama band.</p>
                 {errors.title && <p className="text-sm text-rose-600">{errors.title}</p>}
             </div>
 
@@ -390,7 +444,22 @@ function RundownFields({ data, setData, errors, lineup, days, isMultiDay }) {
     );
 }
 
-function RundownRow({ event, rundown, lineup, days, isMultiDay }) {
+function RundownRow({
+    event,
+    rundown,
+    lineup,
+    days,
+    isMultiDay,
+    isFirst,
+    isLast,
+    isDragging,
+    onMoveUp,
+    onMoveDown,
+    onDragStart,
+    onDragEnd,
+    onDragOver,
+    onDrop,
+}) {
     const [editing, setEditing] = useState(false);
 
     const { data, setData, put, processing, errors } = useForm({
@@ -448,30 +517,68 @@ function RundownRow({ event, rundown, lineup, days, isMultiDay }) {
     }
 
     return (
-        <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 px-4 py-3">
-            <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
-                        {rundown.start_time}
-                        {rundown.end_time ? ` - ${rundown.end_time}` : ''}
-                    </span>
-                    <p className="font-medium text-slate-900">{rundown.performer_name ?? rundown.title}</p>
-                    {rundown.performer_genre && (
-                        <span className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs font-medium text-slate-600">
-                            {rundown.performer_genre}
+        <li
+            draggable
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            onDragOver={onDragOver}
+            onDrop={onDrop}
+            className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 ${
+                isDragging ? 'border-indigo-300 bg-indigo-50/40 opacity-60' : 'border-slate-200 bg-white'
+            }`}
+        >
+            <div className="flex min-w-0 items-start gap-3">
+                <span
+                    className="mt-0.5 cursor-grab text-slate-300 hover:text-slate-500"
+                    title="Geser untuk mengubah urutan"
+                    aria-hidden="true"
+                >
+                    <GripVertical className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+                            {rundown.start_time}
+                            {rundown.end_time ? ` - ${rundown.end_time}` : ''}
                         </span>
+                        <p className="font-medium text-slate-900">{rundown.title ?? rundown.performer_name}</p>
+                        {rundown.performer_genre && (
+                            <span className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs font-medium text-slate-600">
+                                {rundown.performer_genre}
+                            </span>
+                        )}
+                    </div>
+                    {rundown.title && rundown.performer_name && (
+                        <p className="mt-1 text-sm text-slate-600">{rundown.performer_name}</p>
                     )}
+                    {rundown.description && <p className="mt-1 text-sm text-slate-500">{rundown.description}</p>}
                 </div>
-                {rundown.performer_name && rundown.title && (
-                    <p className="mt-1 text-sm text-slate-600">{rundown.title}</p>
-                )}
-                {rundown.description && <p className="mt-1 text-sm text-slate-500">{rundown.description}</p>}
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
+                <button
+                    type="button"
+                    onClick={onMoveUp}
+                    disabled={isFirst}
+                    title="Naikkan"
+                    aria-label={`Naikkan ${rundown.title ?? rundown.performer_name ?? 'sesi'}`}
+                    className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-30 disabled:hover:bg-transparent"
+                >
+                    <ChevronUp className="h-4 w-4" />
+                </button>
+                <button
+                    type="button"
+                    onClick={onMoveDown}
+                    disabled={isLast}
+                    title="Turunkan"
+                    aria-label={`Turunkan ${rundown.title ?? rundown.performer_name ?? 'sesi'}`}
+                    className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-30 disabled:hover:bg-transparent"
+                >
+                    <ChevronDown className="h-4 w-4" />
+                </button>
                 <button
                     type="button"
                     onClick={() => setEditing(true)}
-                    className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                    className="ml-2 text-sm font-medium text-indigo-600 hover:text-indigo-700"
                 >
                     Edit
                 </button>

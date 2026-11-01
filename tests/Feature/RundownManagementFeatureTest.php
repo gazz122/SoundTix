@@ -303,4 +303,83 @@ class RundownManagementFeatureTest extends TestCase
             'event_day_id' => $dayTwo->id,
         ]);
     }
+
+    public function test_organizer_can_reorder_sessions_and_each_duration_is_preserved(): void
+    {
+        $organizer = $this->organizer();
+        $event = $this->publishedEvent($organizer);
+
+        $opening = $event->rundowns()->create(['start_time' => '19:00', 'end_time' => '19:30', 'title' => 'Opening']);
+        $main = $event->rundowns()->create(['start_time' => '19:30', 'end_time' => '20:30', 'title' => 'Main']);
+        $closing = $event->rundowns()->create(['start_time' => '20:30', 'end_time' => '21:00', 'title' => 'Closing']);
+
+        $this->actingAs($organizer)
+            ->put("/organizer/events/{$event->id}/rundowns/reorder", [
+                'ids' => [$closing->id, $opening->id, $main->id],
+            ])
+            ->assertRedirect("organizer/events/{$event->id}");
+
+        $this->assertDatabaseHas('event_rundowns', ['id' => $closing->id, 'start_time' => '19:00', 'end_time' => '19:30']);
+        $this->assertDatabaseHas('event_rundowns', ['id' => $opening->id, 'start_time' => '19:30', 'end_time' => '20:00']);
+        $this->assertDatabaseHas('event_rundowns', ['id' => $main->id, 'start_time' => '20:00', 'end_time' => '21:00']);
+
+        $this->get("/events/{$event->slug}")
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->where('event.rundowns.0.title', 'Closing')
+                    ->where('event.rundowns.1.title', 'Opening')
+                    ->where('event.rundowns.2.title', 'Main'),
+            );
+    }
+
+    public function test_reordering_uses_a_thirty_minute_duration_when_end_time_is_missing(): void
+    {
+        $organizer = $this->organizer();
+        $event = $this->publishedEvent($organizer);
+
+        $first = $event->rundowns()->create(['start_time' => '19:00', 'end_time' => '19:30', 'title' => 'Opening']);
+        $withoutEnd = $event->rundowns()->create(['start_time' => '19:30', 'title' => 'Tanpa jam selesai']);
+        $last = $event->rundowns()->create(['start_time' => '20:00', 'end_time' => '20:30', 'title' => 'Closing']);
+
+        $this->actingAs($organizer)
+            ->put("/organizer/events/{$event->id}/rundowns/reorder", [
+                'ids' => [$withoutEnd->id, $first->id, $last->id],
+            ])
+            ->assertRedirect("organizer/events/{$event->id}");
+
+        $this->assertDatabaseHas('event_rundowns', ['id' => $withoutEnd->id, 'start_time' => '19:00', 'end_time' => '19:30']);
+        $this->assertDatabaseHas('event_rundowns', ['id' => $first->id, 'start_time' => '19:30', 'end_time' => '20:00']);
+        $this->assertDatabaseHas('event_rundowns', ['id' => $last->id, 'start_time' => '20:00', 'end_time' => '20:30']);
+    }
+
+    public function test_reordering_rejects_sessions_from_another_event(): void
+    {
+        $organizer = $this->organizer();
+        $event = $this->publishedEvent($organizer);
+        $foreign = $this->publishedEvent($this->organizer());
+        $foreignRundown = $foreign->rundowns()->create(['start_time' => '19:00', 'title' => 'Bukan milik event ini']);
+
+        $this->actingAs($organizer)
+            ->put("/organizer/events/{$event->id}/rundowns/reorder", ['ids' => [$foreignRundown->id]])
+            ->assertNotFound();
+    }
+
+    public function test_reordering_rejects_sessions_from_different_days(): void
+    {
+        $organizer = $this->organizer();
+        $event = Event::factory()->published()->create([
+            'organizer_id' => $organizer->id,
+            'duration_type' => 'multi_day',
+            'total_days' => 2,
+        ]);
+        $dayOne = $event->eventDays()->create(['day_number' => 1, 'date' => '2026-12-01']);
+        $dayTwo = $event->eventDays()->create(['day_number' => 2, 'date' => '2026-12-02']);
+
+        $first = $event->rundowns()->create(['event_day_id' => $dayOne->id, 'start_time' => '19:00', 'title' => 'Day one']);
+        $second = $event->rundowns()->create(['event_day_id' => $dayTwo->id, 'start_time' => '19:00', 'title' => 'Day two']);
+
+        $this->actingAs($organizer)
+            ->put("/organizer/events/{$event->id}/rundowns/reorder", ['ids' => [$first->id, $second->id]])
+            ->assertStatus(422);
+    }
 }

@@ -8,6 +8,8 @@ use App\Models\EventRundown;
 use App\Repositories\EventRepository;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class RundownController extends Controller
@@ -44,6 +46,46 @@ class RundownController extends Controller
         return $this->back($event, 'Sesi rundown dihapus.');
     }
 
+    public function reorder(Request $request, int $event): RedirectResponse
+    {
+        $event = $this->findEvent($request, $event);
+
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer', 'distinct'],
+        ]);
+
+        $rundowns = $event->rundowns()->whereKey($data['ids'])->get()->keyBy('id');
+
+        abort_if($rundowns->count() !== count($data['ids']), 404);
+
+        abort_if(
+            $rundowns->pluck('event_day_id')->unique()->count() > 1,
+            422,
+            'Sesi yang diurutkan harus berasal dari hari yang sama.',
+        );
+
+        /** @var Collection<int, EventRundown> $ordered */
+        $ordered = collect($data['ids'])->map(fn ($id) => $rundowns[$id]);
+
+        $cursor = $ordered->map(fn (EventRundown $rundown) => $this->minutes($rundown->start_time))->min();
+
+        DB::transaction(function () use ($ordered, $cursor): void {
+            foreach ($ordered as $rundown) {
+                $end = $cursor + $this->durationInMinutes($rundown);
+
+                $rundown->update([
+                    'start_time' => $this->clock($cursor),
+                    'end_time' => $this->clock($end),
+                ]);
+
+                $cursor = $end;
+            }
+        });
+
+        return $this->back($event, 'Urutan rundown diperbarui.');
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -78,6 +120,29 @@ class RundownController extends Controller
         }
 
         return $data;
+    }
+
+    private function minutes(string $time): int
+    {
+        [$hour, $minute] = array_map('intval', explode(':', substr($time, 0, 5)));
+
+        return $hour * 60 + $minute;
+    }
+
+    private function durationInMinutes(EventRundown $rundown): int
+    {
+        if ($rundown->end_time === null) {
+            return 30;
+        }
+
+        $duration = $this->minutes((string) $rundown->end_time) - $this->minutes((string) $rundown->start_time);
+
+        return $duration > 0 ? $duration : 30;
+    }
+
+    private function clock(int $minutes): string
+    {
+        return sprintf('%02d:%02d', intdiv($minutes, 60) % 24, $minutes % 60);
     }
 
     private function findEvent(Request $request, int $id): Event

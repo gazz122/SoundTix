@@ -592,10 +592,10 @@ function RundownSection({ event }) {
                                                 </span>
                                             )}
                                             <p className="font-medium text-slate-900">
-                                                {item.performer?.name ?? item.title}
+                                                {item.title ?? item.performer?.name}
                                             </p>
-                                            {item.performer && item.title && (
-                                                <p className="text-sm text-slate-600">{item.title}</p>
+                                            {item.title && item.performer && (
+                                                <p className="text-sm text-slate-600">{item.performer.name}</p>
                                             )}
                                             {item.performer?.genre && (
                                                 <span className="mt-1 inline-block rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs font-medium text-slate-600">
