@@ -187,12 +187,20 @@ class RundownManagementFeatureTest extends TestCase
     public function test_paid_order_exposes_a_rundown_payload_and_pending_order_does_not(): void
     {
         $event = $this->publishedEvent($this->organizer());
+        $event->rundowns()->create(['start_time' => '19:00', 'end_time' => '20:00', 'title' => 'Opening DJ']);
         $customer = User::factory()->create();
         $order = $this->paidOrderFor($event, $customer);
         $payload = $this->rundownPayload($event, $order);
+        $viewerUrl = app(RundownPayload::class)->viewerUrl($event->load(['eventDays', 'rundowns.performer']));
 
         $this->assertStringStartsWith('rundown.', $payload);
         $this->assertStringNotContainsString('http', $payload);
+        $this->assertStringStartsWith(url('/rundown-viewer.html').'#', $viewerUrl);
+        $this->assertFileExists(public_path('rundown-viewer.html'));
+
+        $decoded = json_decode(base64_decode(strtr(explode('#', $viewerUrl)[1], '-_', '+/')), true);
+        $this->assertSame($event->title, $decoded['t']);
+        $this->assertSame('Opening DJ', $decoded['r'][0]['t']);
 
         $this->actingAs($customer)
             ->get("/orders/{$order->order_code}")
@@ -200,7 +208,8 @@ class RundownManagementFeatureTest extends TestCase
                 fn (Assert $page) => $page
                     ->has('order.rundown_links', 1)
                     ->where('order.rundown_links.0.event_id', $event->id)
-                    ->where('order.rundown_links.0.payload', $payload),
+                    ->where('order.rundown_links.0.payload', $payload)
+                    ->where('order.rundown_links.0.viewer_url', $viewerUrl),
             );
 
         $pending = Order::factory()->create(['customer_id' => $customer->id]);

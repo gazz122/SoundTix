@@ -44,9 +44,17 @@ export default function Scan() {
     function openPayload(code) {
         const value = code.trim();
 
-        if (value !== '') {
-            router.get('/rundown/scan', { payload: value });
+        if (value === '') {
+            return;
         }
+
+        if (/^(https?:\/\/|data:)/i.test(value)) {
+            window.location.href = value;
+
+            return;
+        }
+
+        router.get('/rundown/scan', { payload: value });
     }
 
     useEffect(() => {

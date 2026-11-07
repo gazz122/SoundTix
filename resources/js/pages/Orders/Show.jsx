@@ -596,8 +596,8 @@ function RundownQrSection({ links }) {
         <div className="mt-8">
             <h2 className="mb-1 font-semibold text-slate-900">QR Rundown Acara</h2>
             <p className="mb-4 text-sm text-slate-500">
-                QR ini berisi payload jadwal, bukan link. Buka halaman Scan Rundown di HP, lalu pindai QR ini
-                untuk melihat jadwal terbaru. QR ini hanya untuk jadwal, bukan tiket masuk.
+                Scan QR ini dengan kamera HP untuk membuka rundown. Halaman viewer-nya statis dan payload jadwal
+                ada di dalam QR, jadi tidak perlu login. QR ini hanya untuk jadwal, bukan tiket masuk.
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
                 {links.map((link) => (
@@ -612,12 +612,14 @@ function RundownQrSection({ links }) {
                             >
                                 Lihat QR Rundown
                             </button>
-                            <Link
-                                href="/rundown/scan"
+                            <a
+                                href={link.viewer_url}
+                                target="_blank"
+                                rel="noreferrer"
                                 className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-sm font-medium py-2 px-4 rounded-lg transition-all"
                             >
-                                Buka Scanner
-                            </Link>
+                                Buka Rundown
+                            </a>
                         </div>
                     </div>
                 ))}
@@ -630,6 +632,7 @@ function RundownQrSection({ links }) {
 
 function RundownQrModal({ link, onClose }) {
     const [copied, setCopied] = useState(false);
+    const isLocalhost = /localhost|127\.0\.0\.1/.test(link.viewer_url);
 
     async function copyPayload() {
         try {
@@ -642,23 +645,27 @@ function RundownQrModal({ link, onClose }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-            <div className="w-full max-w-sm rounded-xl bg-white p-6 text-center shadow-xl">
+            <div className="max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-6 text-center shadow-xl">
                 <h3 className="text-lg font-semibold text-slate-900">{link.event_title}</h3>
                 <p className="mt-1 text-sm text-slate-500">
-                    Buka halaman Scan Rundown di HP, lalu pindai QR ini. QR berisi payload, bukan URL.
+                    Scan QR ini dengan kamera HP. Halaman rundown akan terbuka langsung di browser.
                 </p>
                 <div className="mt-4 flex justify-center">
-                    <QRCodeSVG value={link.payload} size={240} level="M" />
+                    <QRCodeSVG value={link.viewer_url} size={240} level="L" />
                 </div>
-                <code className="mt-3 block break-all rounded-lg bg-slate-50 p-2 text-left text-[11px] text-slate-500">
-                    {link.payload}
-                </code>
+                <p className="mt-3 break-all text-xs text-slate-400">{link.viewer_url}</p>
+                {isLocalhost && (
+                    <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                        Alamat QR masih localhost, jadi tidak bisa dibuka dari HP. Buka halaman ini lewat IP LAN
+                        komputer atau domain deploy.
+                    </p>
+                )}
                 <button
                     type="button"
                     onClick={copyPayload}
                     className="mt-2 text-xs font-medium text-indigo-600 hover:text-indigo-700"
                 >
-                    {copied ? 'Payload tersalin' : 'Salin payload'}
+                    {copied ? 'Payload tersalin' : 'Salin payload untuk scan manual'}
                 </button>
                 <p className="mt-2 text-xs text-slate-500">QR ini bukan tiket masuk konser.</p>
                 <button

@@ -304,7 +304,7 @@ class OrderController extends Controller
     }
 
     /**
-     * @return list<array{event_id: int, event_title: string, event_date: ?string, payload: string}>
+     * @return list<array{event_id: int, event_title: string, event_date: ?string, payload: string, viewer_url: string}>
      */
     private function rundownLinks(Order $order): array
     {
@@ -312,15 +312,22 @@ class OrderController extends Controller
             return [];
         }
 
-        return $order->orderItems
-            ->map(fn ($item) => $item->ticketCategory->event)
+        $eventIds = $order->orderItems
+            ->map(fn ($item) => $item->ticketCategory?->event_id)
             ->filter()
-            ->unique('id')
+            ->unique()
+            ->values();
+
+        return Event::query()
+            ->with(['eventDays', 'rundowns.performer:id,name,genre'])
+            ->whereIn('id', $eventIds)
+            ->get()
             ->map(fn (Event $event) => [
                 'event_id' => $event->id,
                 'event_title' => $event->title,
                 'event_date' => $event->event_date?->format('Y-m-d'),
                 'payload' => $this->rundowns->payload($order, $event),
+                'viewer_url' => $this->rundowns->viewerUrl($event),
             ])
             ->values()
             ->all();
