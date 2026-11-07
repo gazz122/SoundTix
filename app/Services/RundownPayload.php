@@ -52,7 +52,62 @@ class RundownPayload
      */
     public function viewerUrl(Event $event): string
     {
-        return url('/rundown-viewer.html').'#'.$this->encode($event);
+        return $this->baseUrl().'/rundown-viewer.html#'.$this->encode($event);
+    }
+
+    /**
+     * Use the request host, but replace localhost with the machine's LAN IP so
+     * a phone on the same Wi-Fi can open the QR without deploying the app.
+     */
+    private function baseUrl(): string
+    {
+        $request = request();
+        $host = $request->getHost();
+
+        if (in_array($host, ['localhost', '127.0.0.1', '::1'], true) && app()->environment('local')) {
+            $lanIp = $this->lanIp();
+
+            if ($lanIp !== null) {
+                $port = $request->getPort();
+
+                return $request->getScheme().'://'.$lanIp.(in_array($port, [80, 443], true) ? '' : ':'.$port);
+            }
+        }
+
+        return $request->getSchemeAndHttpHost();
+    }
+
+    private function lanIp(): ?string
+    {
+        $hostname = gethostname();
+
+        if ($hostname !== false) {
+            foreach (gethostbynamel($hostname) ?: [] as $ip) {
+                if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) && ! str_starts_with($ip, '127.')) {
+                    return $ip;
+                }
+            }
+        }
+
+        if (function_exists('socket_create')) {
+            $socket = @socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
+
+            if ($socket !== false) {
+                if (@socket_connect($socket, '8.8.8.8', 80)) {
+                    $address = '';
+
+                    if (@socket_getsockname($socket, $address) && filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) && ! str_starts_with($address, '127.')) {
+                        socket_close($socket);
+
+                        return $address;
+                    }
+                }
+
+                socket_close($socket);
+            }
+        }
+
+        return null;
     }
 
     private function encode(Event $event): string
