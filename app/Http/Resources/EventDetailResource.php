@@ -3,7 +3,6 @@
 namespace App\Http\Resources;
 
 use App\Models\EventDay;
-use App\Models\EventRundown;
 use Illuminate\Http\Request;
 
 class EventDetailResource extends EventResource
@@ -29,36 +28,7 @@ class EventDetailResource extends EventResource
                 ])
                 ->values()
                 ->all(),
-            'rundowns' => $this->rundownsPayload(),
         ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    protected function rundownsPayload(): array
-    {
-        if (! $this->relationLoaded('rundowns')) {
-            return [];
-        }
-
-        return $this->rundowns
-            ->map(fn (EventRundown $rundown) => [
-                'id' => $rundown->id,
-                'start_time' => substr((string) $rundown->start_time, 0, 5),
-                'end_time' => $rundown->end_time !== null ? substr((string) $rundown->end_time, 0, 5) : null,
-                'title' => $rundown->title,
-                'description' => $rundown->description,
-                'event_day_id' => $rundown->event_day_id,
-                'performer' => $rundown->performer === null ? null : [
-                    'id' => $rundown->performer->id,
-                    'name' => $rundown->performer->name,
-                    'genre' => $rundown->performer->genre,
-                ],
-                'updated_at' => $rundown->updated_at?->toIso8601String(),
-            ])
-            ->values()
-            ->all();
     }
 
     protected function wib(mixed $value, string $format): ?string

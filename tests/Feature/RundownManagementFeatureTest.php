@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Event;
+use App\Models\Order;
 use App\Models\Performer;
 use App\Models\User;
+use App\Services\RundownPayload;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -22,6 +24,32 @@ class RundownManagementFeatureTest extends TestCase
     private function publishedEvent(User $organizer): Event
     {
         return Event::factory()->published()->create(['organizer_id' => $organizer->id]);
+    }
+
+    private function paidOrderFor(Event $event, User $customer): Order
+    {
+        $category = $event->ticketCategories()->create([
+            'name' => 'Reguler',
+            'price' => 100_000,
+            'total_quantity' => 10,
+            'available_quantity' => 10,
+            'max_per_order' => 5,
+        ]);
+
+        $order = Order::factory()->paid()->create(['customer_id' => $customer->id]);
+        $order->orderItems()->create([
+            'ticket_category_id' => $category->id,
+            'quantity' => 1,
+            'price_per_unit' => 100_000,
+            'subtotal' => 100_000,
+        ]);
+
+        return $order;
+    }
+
+    private function rundownUrl(Event $event, Order $order): string
+    {
+        return app(RundownPayload::class)->url($order, $event);
     }
 
     public function test_organizer_can_add_a_rundown_session(): void
@@ -77,7 +105,7 @@ class RundownManagementFeatureTest extends TestCase
         $this->assertDatabaseCount('event_rundowns', 0);
     }
 
-    public function test_public_event_detail_includes_rundowns_and_gate_times(): void
+    public function test_public_event_detail_keeps_gate_times_but_no_longer_shows_rundowns(): void
     {
         $organizer = $this->organizer();
         $openWib = '2026-12-01T18:00';
@@ -101,9 +129,65 @@ class RundownManagementFeatureTest extends TestCase
                 fn (Assert $page) => $page
                     ->where('event.open_gate', '2026-12-01 18:00')
                     ->where('event.close_gate', '2026-12-01 23:00')
-                    ->has('event.rundowns', 1)
+                    ->missing('event.rundowns'),
+            );
+    }
+
+    public function test_buyer_opens_the_rundown_page_with_a_payload_token(): void
+    {
+        $organizer = $this->organizer();
+        $event = $this->publishedEvent($organizer);
+        $event->rundowns()->create(['start_time' => '19:00', 'end_time' => '20:00', 'title' => 'Opening DJ']);
+        $order = $this->paidOrderFor($event, User::factory()->create());
+
+        $this->get($this->rundownUrl($event, $order))
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->component('Rundown/Show')
+                    ->where('event.title', $event->title)
                     ->where('event.rundowns.0.title', 'Opening DJ'),
             );
+    }
+
+    public function test_rundown_page_rejects_an_invalid_payload_token(): void
+    {
+        $event = $this->publishedEvent($this->organizer());
+        $order = $this->paidOrderFor($event, User::factory()->create());
+
+        $this->get("/rundown/{$order->order_code}/{$event->slug}/not-the-real-token")->assertNotFound();
+    }
+
+    public function test_rundown_page_rejects_an_unpaid_order(): void
+    {
+        $event = $this->publishedEvent($this->organizer());
+        $customer = User::factory()->create();
+        $order = $this->paidOrderFor($event, $customer);
+        $order->update(['status' => 'pending']);
+
+        $this->get($this->rundownUrl($event, $order))->assertNotFound();
+    }
+
+    public function test_paid_order_exposes_a_rundown_qr_link_and_pending_order_does_not(): void
+    {
+        $event = $this->publishedEvent($this->organizer());
+        $customer = User::factory()->create();
+        $order = $this->paidOrderFor($event, $customer);
+
+        $this->actingAs($customer)
+            ->get("/orders/{$order->order_code}")
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->has('order.rundown_links', 1)
+                    ->where('order.rundown_links.0.event_id', $event->id)
+                    ->where('order.rundown_links.0.url', $this->rundownUrl($event, $order)),
+            );
+
+        $pending = Order::factory()->create(['customer_id' => $customer->id]);
+
+        $this->actingAs($customer)
+            ->get("/orders/{$pending->order_code}")
+            ->assertInertia(fn (Assert $page) => $page->has('order.rundown_links', 0));
     }
 
     public function test_gatekeeper_dashboard_shows_rundowns_of_upcoming_events(): void
@@ -244,7 +328,9 @@ class RundownManagementFeatureTest extends TestCase
             ])
             ->assertRedirect("organizer/events/{$event->id}");
 
-        $this->get("/events/{$event->slug}")
+        $order = $this->paidOrderFor($event, User::factory()->create());
+
+        $this->get($this->rundownUrl($event, $order))
             ->assertOk()
             ->assertInertia(
                 fn (Assert $page) => $page
@@ -263,7 +349,9 @@ class RundownManagementFeatureTest extends TestCase
             $event->rundowns()->create(['start_time' => $time, 'title' => $title]);
         }
 
-        $this->get("/events/{$event->slug}")
+        $order = $this->paidOrderFor($event, User::factory()->create());
+
+        $this->get($this->rundownUrl($event, $order))
             ->assertInertia(
                 fn (Assert $page) => $page
                     ->where('event.rundowns.0.title', 'Opening')
@@ -323,7 +411,9 @@ class RundownManagementFeatureTest extends TestCase
         $this->assertDatabaseHas('event_rundowns', ['id' => $opening->id, 'start_time' => '19:30', 'end_time' => '20:00']);
         $this->assertDatabaseHas('event_rundowns', ['id' => $main->id, 'start_time' => '20:00', 'end_time' => '21:00']);
 
-        $this->get("/events/{$event->slug}")
+        $order = $this->paidOrderFor($event, User::factory()->create());
+
+        $this->get($this->rundownUrl($event, $order))
             ->assertInertia(
                 fn (Assert $page) => $page
                     ->where('event.rundowns.0.title', 'Closing')

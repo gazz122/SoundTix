@@ -22,12 +22,14 @@ use App\Http\Controllers\OrganizerReportController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\RefundAccountController;
 use App\Http\Controllers\RundownController;
+use App\Http\Controllers\RundownPageController;
 use App\Http\Controllers\TicketCategoryController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', [EventController::class, 'index'])->name('home');
 Route::get('/events/{event:slug}', [EventController::class, 'show'])->name('events.show');
+Route::get('/rundown/{orderCode}/{eventSlug}/{token}', [RundownPageController::class, 'show'])->name('rundown.show');
 Route::get('/about', fn () => Inertia::render('About'))->name('about');
 Route::get('/contact', fn () => Inertia::render('Contact'))->name('contact');
 Route::get('/faq', [FaqController::class, 'index'])->name('faq');

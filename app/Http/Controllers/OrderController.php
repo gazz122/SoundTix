@@ -15,6 +15,7 @@ use App\Notifications\SoundTixNotification;
 use App\Repositories\EventRepository;
 use App\Repositories\OrderRepository;
 use App\Repositories\TicketCategoryRepository;
+use App\Services\RundownPayload;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -30,6 +31,7 @@ class OrderController extends Controller
         private EventRepository $events,
         private OrderRepository $orders,
         private TicketCategoryRepository $categories,
+        private RundownPayload $rundowns,
     ) {}
 
     public function index(Request $request): Response
@@ -261,6 +263,7 @@ class OrderController extends Controller
                     ],
                 ))->values()->all()
                 : [],
+            'rundown_links' => $this->rundownLinks($order),
             'items' => $items,
             'payments' => $order->payments
                 ->sortByDesc('created_at')
@@ -292,6 +295,29 @@ class OrderController extends Controller
                 ])
                 ->all(),
         ];
+    }
+
+    /**
+     * @return list<array{event_id: int, event_title: string, event_date: ?string, url: string}>
+     */
+    private function rundownLinks(Order $order): array
+    {
+        if ($order->status !== OrderStatus::Paid->value) {
+            return [];
+        }
+
+        return $order->orderItems
+            ->map(fn ($item) => $item->ticketCategory->event)
+            ->filter()
+            ->unique('id')
+            ->map(fn (Event $event) => [
+                'event_id' => $event->id,
+                'event_title' => $event->title,
+                'event_date' => $event->event_date?->format('Y-m-d'),
+                'url' => $this->rundowns->url($order, $event),
+            ])
+            ->values()
+            ->all();
     }
 
     private function ticketEventDate(TicketCategory $category): ?string

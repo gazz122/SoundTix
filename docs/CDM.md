@@ -87,4 +87,4 @@ migrations, sessions, cache, cache_locks, jobs, job_batches, failed_jobs, passwo
 - faqs publishes through the boolean is_published; there is no FAQStatus enum.
 - A refund has no direct event_id. It reaches an event through order -> order_item -> ticket_category -> event, so there is no Event hasMany Refund relationship.
 - A rundown session points to at most one performer and at most one event day. A session without a performer keeps its own title; the "title or performer" rule is enforced in the controller, not the database.
-- Rundown edits are live: buyers see the organizer's latest times on the event page, which polls every 30 seconds while the event day is running.
+- Rundown edits are live: buyers open a signed payload link from "Tiket Saya" (one QR per paid event, separate from the ticket check-in QR) and the rundown page polls every 30 seconds. The public event page no longer shows the rundown.

@@ -129,6 +129,8 @@ export default function Show({ order }) {
                 </div>
             )}
 
+            {order.rundown_links?.length > 0 && <RundownQrSection links={order.rundown_links} />}
+
             <div className="mt-6 bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm">
                 <div className="divide-y divide-slate-200/80">
                     {order.items.map((item) => (
@@ -585,4 +587,68 @@ function Countdown({ from }) {
 function remainingSeconds(expiresAtIso) {
     const diff = new Date(expiresAtIso).getTime() - Date.now();
     return Math.max(0, Math.floor(diff / 1000));
+}
+
+function RundownQrSection({ links }) {
+    const [activeLink, setActiveLink] = useState(null);
+
+    return (
+        <div className="mt-8">
+            <h2 className="mb-1 font-semibold text-slate-900">QR Rundown Acara</h2>
+            <p className="mb-4 text-sm text-slate-500">
+                Scan QR ini dengan browser HP untuk melihat jadwal rundown terbaru. QR ini hanya untuk jadwal,
+                bukan tiket masuk.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+                {links.map((link) => (
+                    <div key={link.event_id} className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                        <p className="font-medium text-slate-900">{link.event_title}</p>
+                        {link.event_date && <p className="mt-0.5 text-sm text-slate-500">{formatDate(link.event_date)}</p>}
+                        <div className="mt-4 flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setActiveLink(link)}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-all shadow-sm"
+                            >
+                                Lihat QR Rundown
+                            </button>
+                            <a
+                                href={link.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-sm font-medium py-2 px-4 rounded-lg transition-all"
+                            >
+                                Buka halaman
+                            </a>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {activeLink && <RundownQrModal link={activeLink} onClose={() => setActiveLink(null)} />}
+        </div>
+    );
+}
+
+function RundownQrModal({ link, onClose }) {
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+            <div className="w-full max-w-sm rounded-xl bg-white p-6 text-center shadow-xl">
+                <h3 className="text-lg font-semibold text-slate-900">{link.event_title}</h3>
+                <p className="mt-1 text-sm text-slate-500">Scan QR ini dengan kamera HP untuk membuka rundown.</p>
+                <div className="mt-4 flex justify-center">
+                    <QRCodeSVG value={link.url} size={240} level="M" />
+                </div>
+                <p className="mt-3 break-all text-xs text-slate-400">{link.url}</p>
+                <p className="mt-2 text-xs text-slate-500">QR ini bukan tiket masuk konser.</p>
+                <button
+                    type="button"
+                    onClick={onClose}
+                    className="mt-5 w-full bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-sm font-medium py-2 px-5 rounded-lg transition-all"
+                >
+                    Tutup
+                </button>
+            </div>
+        </div>
+    );
 }
