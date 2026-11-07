@@ -7,18 +7,38 @@ use App\Models\Order;
 
 class RundownPayload
 {
-    public function token(Order $order, Event $event): string
+    /**
+     * Build a signed payload string for a paid order and event.
+     *
+     * Payload format: rundown.{order_id}.{event_id}.{hmac_sha256}
+     */
+    public function payload(Order $order, Event $event): string
     {
-        return hash_hmac('sha256', "rundown:{$order->id}:{$event->id}", (string) config('app.key'));
+        $data = "rundown.{$order->id}.{$event->id}";
+
+        return $data.'.'.hash_hmac('sha256', $data, (string) config('app.key'));
     }
 
-    public function url(Order $order, Event $event): string
+    /**
+     * Verify the signature and return the referenced order and event ids.
+     *
+     * @return array{order_id: int, event_id: int}|null
+     */
+    public function parse(string $payload): ?array
     {
-        return url("/rundown/{$order->order_code}/{$event->slug}/{$this->token($order, $event)}");
-    }
+        $parts = explode('.', $payload);
 
-    public function matches(Order $order, Event $event, string $token): bool
-    {
-        return hash_equals($this->token($order, $event), $token);
+        if (count($parts) !== 4 || $parts[0] !== 'rundown') {
+            return null;
+        }
+
+        $hmac = array_pop($parts);
+        $data = implode('.', $parts);
+
+        if (! hash_equals(hash_hmac('sha256', $data, (string) config('app.key')), $hmac)) {
+            return null;
+        }
+
+        return ['order_id' => (int) $parts[1], 'event_id' => (int) $parts[2]];
     }
 }

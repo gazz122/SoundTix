@@ -1,4 +1,4 @@
-import { usePoll } from '@inertiajs/react';
+import { Link, usePoll } from '@inertiajs/react';
 import PublicLayout from '@/components/PublicLayout';
 import { formatDate } from '@/lib/format';
 
@@ -61,6 +61,9 @@ export default function Show({ event }) {
                         Halaman ini hanya menampilkan jadwal acara, bukan tiket masuk. QR tiket tetap dipakai untuk
                         check-in di venue.
                     </p>
+                    <Link href="/rundown/scan" className="mt-3 inline-block text-sm font-medium text-indigo-600 hover:text-indigo-700">
+                        Scan ulang QR
+                    </Link>
                 </div>
 
                 <div className="mt-6 flex flex-wrap items-baseline justify-between gap-2">

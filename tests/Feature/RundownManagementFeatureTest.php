@@ -47,9 +47,14 @@ class RundownManagementFeatureTest extends TestCase
         return $order;
     }
 
-    private function rundownUrl(Event $event, Order $order): string
+    private function rundownPayload(Event $event, Order $order): string
     {
-        return app(RundownPayload::class)->url($order, $event);
+        return app(RundownPayload::class)->payload($order, $event);
+    }
+
+    private function rundownScanUrl(Event $event, Order $order): string
+    {
+        return '/rundown/scan?payload='.urlencode($this->rundownPayload($event, $order));
     }
 
     public function test_organizer_can_add_a_rundown_session(): void
@@ -133,14 +138,14 @@ class RundownManagementFeatureTest extends TestCase
             );
     }
 
-    public function test_buyer_opens_the_rundown_page_with_a_payload_token(): void
+    public function test_buyer_opens_the_rundown_page_with_a_payload(): void
     {
         $organizer = $this->organizer();
         $event = $this->publishedEvent($organizer);
         $event->rundowns()->create(['start_time' => '19:00', 'end_time' => '20:00', 'title' => 'Opening DJ']);
         $order = $this->paidOrderFor($event, User::factory()->create());
 
-        $this->get($this->rundownUrl($event, $order))
+        $this->get($this->rundownScanUrl($event, $order))
             ->assertOk()
             ->assertInertia(
                 fn (Assert $page) => $page
@@ -150,12 +155,21 @@ class RundownManagementFeatureTest extends TestCase
             );
     }
 
-    public function test_rundown_page_rejects_an_invalid_payload_token(): void
+    public function test_scan_page_renders_the_camera_scanner(): void
+    {
+        $this->get('/rundown/scan')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Rundown/Scan'));
+    }
+
+    public function test_rundown_page_rejects_an_invalid_payload(): void
     {
         $event = $this->publishedEvent($this->organizer());
         $order = $this->paidOrderFor($event, User::factory()->create());
 
-        $this->get("/rundown/{$order->order_code}/{$event->slug}/not-the-real-token")->assertNotFound();
+        $this->get("/rundown/scan?payload=rundown.{$order->id}.{$event->id}.not-the-real-token")
+            ->assertRedirect(route('rundown.scan'))
+            ->assertSessionHasErrors('payload');
     }
 
     public function test_rundown_page_rejects_an_unpaid_order(): void
@@ -165,14 +179,20 @@ class RundownManagementFeatureTest extends TestCase
         $order = $this->paidOrderFor($event, $customer);
         $order->update(['status' => 'pending']);
 
-        $this->get($this->rundownUrl($event, $order))->assertNotFound();
+        $this->get($this->rundownScanUrl($event, $order))
+            ->assertRedirect(route('rundown.scan'))
+            ->assertSessionHasErrors('payload');
     }
 
-    public function test_paid_order_exposes_a_rundown_qr_link_and_pending_order_does_not(): void
+    public function test_paid_order_exposes_a_rundown_payload_and_pending_order_does_not(): void
     {
         $event = $this->publishedEvent($this->organizer());
         $customer = User::factory()->create();
         $order = $this->paidOrderFor($event, $customer);
+        $payload = $this->rundownPayload($event, $order);
+
+        $this->assertStringStartsWith('rundown.', $payload);
+        $this->assertStringNotContainsString('http', $payload);
 
         $this->actingAs($customer)
             ->get("/orders/{$order->order_code}")
@@ -180,7 +200,7 @@ class RundownManagementFeatureTest extends TestCase
                 fn (Assert $page) => $page
                     ->has('order.rundown_links', 1)
                     ->where('order.rundown_links.0.event_id', $event->id)
-                    ->where('order.rundown_links.0.url', $this->rundownUrl($event, $order)),
+                    ->where('order.rundown_links.0.payload', $payload),
             );
 
         $pending = Order::factory()->create(['customer_id' => $customer->id]);
@@ -330,7 +350,7 @@ class RundownManagementFeatureTest extends TestCase
 
         $order = $this->paidOrderFor($event, User::factory()->create());
 
-        $this->get($this->rundownUrl($event, $order))
+        $this->get($this->rundownScanUrl($event, $order))
             ->assertOk()
             ->assertInertia(
                 fn (Assert $page) => $page
@@ -351,7 +371,7 @@ class RundownManagementFeatureTest extends TestCase
 
         $order = $this->paidOrderFor($event, User::factory()->create());
 
-        $this->get($this->rundownUrl($event, $order))
+        $this->get($this->rundownScanUrl($event, $order))
             ->assertInertia(
                 fn (Assert $page) => $page
                     ->where('event.rundowns.0.title', 'Opening')
@@ -413,7 +433,7 @@ class RundownManagementFeatureTest extends TestCase
 
         $order = $this->paidOrderFor($event, User::factory()->create());
 
-        $this->get($this->rundownUrl($event, $order))
+        $this->get($this->rundownScanUrl($event, $order))
             ->assertInertia(
                 fn (Assert $page) => $page
                     ->where('event.rundowns.0.title', 'Closing')

@@ -29,7 +29,7 @@ use Inertia\Inertia;
 
 Route::get('/', [EventController::class, 'index'])->name('home');
 Route::get('/events/{event:slug}', [EventController::class, 'show'])->name('events.show');
-Route::get('/rundown/{orderCode}/{eventSlug}/{token}', [RundownPageController::class, 'show'])->name('rundown.show');
+Route::get('/rundown/scan', [RundownPageController::class, 'scan'])->name('rundown.scan');
 Route::get('/about', fn () => Inertia::render('About'))->name('about');
 Route::get('/contact', fn () => Inertia::render('Contact'))->name('contact');
 Route::get('/faq', [FaqController::class, 'index'])->name('faq');

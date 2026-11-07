@@ -133,7 +133,7 @@ export default function Show({ event }) {
                                         </svg>
                                     )}
                                 </button>
-                                <TicketCta user={user} />
+                                <TicketCta user={user} event={event} />
                             </div>
                         )}
                     </div>
@@ -159,16 +159,20 @@ export default function Show({ event }) {
 
                     <div className="mt-8 scroll-mt-40" id="order">
                         <h2 className="text-lg font-semibold text-slate-900">Kategori Tiket</h2>
-                        {isCustomer ? (
+                        {event.has_passed ? (
+                            <div className="mt-3 rounded-xl border border-slate-200/80 bg-slate-50 p-6 text-sm text-slate-600">
+                                Event ini sudah berlangsung, jadi tiketnya tidak dapat dibeli lagi.
+                            </div>
+                        ) : isCustomer ? (
                             <TicketOrder event={event} />
                         ) : (
-                                <TicketTable categories={event.ticket_categories} event={event} />
+                            <TicketTable categories={event.ticket_categories} event={event} />
                         )}
                     </div>
                 </div>
             </section>
 
-            {hasTickets && (
+            {hasTickets && !event.has_passed && (
                 <div
                     className={`fixed inset-x-0 z-30 border-t border-slate-200/80 bg-white/95 px-4 py-3 backdrop-blur-lg lg:hidden ${
                         user ? 'bottom-[4.5rem]' : 'bottom-0'
@@ -195,7 +199,15 @@ export default function Show({ event }) {
     );
 }
 
-function TicketCta({ user }) {
+function TicketCta({ user, event }) {
+    if (event.has_passed) {
+        return (
+            <span className="inline-block cursor-not-allowed rounded-lg bg-slate-200 px-8 py-3 text-center font-semibold text-slate-500">
+                Event Sudah Berlangsung
+            </span>
+        );
+    }
+
     if (user?.role === 'customer') {
         return (
             <a

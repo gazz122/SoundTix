@@ -270,15 +270,16 @@ class CustomerOrderingFeatureTest extends TestCase
     public function test_multi_day_order_uses_selected_day_date_in_order_details(): void
     {
         $customer = $this->customer();
+        $start = now()->addDays(30)->startOfDay();
         $event = Event::factory()->published()->create([
-            'event_date' => '2026-10-07',
+            'event_date' => $start->toDateString(),
             'duration_type' => 'multi_day',
             'total_days' => 3,
         ]);
         $event->eventDays()->createMany([
-            ['day_number' => 1, 'date' => '2026-10-07'],
-            ['day_number' => 2, 'date' => '2026-10-08'],
-            ['day_number' => 3, 'date' => '2026-10-09'],
+            ['day_number' => 1, 'date' => $start->toDateString()],
+            ['day_number' => 2, 'date' => $start->copy()->addDay()->toDateString()],
+            ['day_number' => 3, 'date' => $start->copy()->addDays(2)->toDateString()],
         ]);
         $day = $event->eventDays()->where('day_number', 3)->firstOrFail();
         $category = $event->ticketCategories()->create([
@@ -304,7 +305,7 @@ class CustomerOrderingFeatureTest extends TestCase
             ->assertInertia(
                 fn (Assert $page) => $page
                     ->component('Orders/Show')
-                    ->where('order.items.0.event.event_date', '2026-10-09')
+                    ->where('order.items.0.event.event_date', $start->copy()->addDays(2)->toDateString())
                     ->where('order.items.0.event.ticket_day_label', 'Day 3'),
             );
     }
@@ -397,5 +398,32 @@ class CustomerOrderingFeatureTest extends TestCase
         $this->actingAs($this->customer())
             ->post("/orders/{$order->order_code}/cancel")
             ->assertNotFound();
+    }
+
+    public function test_past_event_cannot_be_ordered(): void
+    {
+        $event = $this->eventWithCategory(['event_date' => now()->subDay()->toDateString()]);
+        $category = $event->ticketCategories->first();
+
+        $this->actingAs($this->customer())
+            ->post("/events/{$event->slug}/order", [
+                'items' => [['category_id' => $category->id, 'quantity' => 1]],
+            ])
+            ->assertSessionHasErrors('items');
+
+        $this->assertSame(0, Order::count());
+        $this->assertSame(100, $category->fresh()->available_quantity);
+    }
+
+    public function test_event_detail_flags_a_past_event_as_closed(): void
+    {
+        $past = $this->eventWithCategory(['event_date' => now()->subDay()->toDateString()]);
+        $upcoming = $this->eventWithCategory();
+
+        $this->get("/events/{$past->slug}")
+            ->assertInertia(fn (Assert $page) => $page->where('event.has_passed', true));
+
+        $this->get("/events/{$upcoming->slug}")
+            ->assertInertia(fn (Assert $page) => $page->where('event.has_passed', false));
     }
 }

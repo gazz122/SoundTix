@@ -18,6 +18,7 @@ class EventDetailResource extends EventResource
             'open_gate' => $this->wib($this->open_gate, 'Y-m-d H:i'),
             'close_gate' => $this->wib($this->close_gate, 'Y-m-d H:i'),
             'duration_type' => $this->duration_type,
+            'has_passed' => $this->hasPassed(),
             'event_days' => $this->eventDays
                 ->map(fn (EventDay $day) => [
                     'id' => $day->id,

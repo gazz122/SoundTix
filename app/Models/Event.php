@@ -95,6 +95,15 @@ class Event extends Model
     }
 
     /**
+     * Determine whether the event day has already passed in WIB.
+     */
+    public function hasPassed(): bool
+    {
+        return $this->event_date !== null
+            && $this->event_date->toDateString() < now('Asia/Jakarta')->toDateString();
+    }
+
+    /**
      * Manual keyword search across event name, artist/performer, or location.
      *
      * @param  array<string, mixed>  $filters

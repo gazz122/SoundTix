@@ -596,8 +596,8 @@ function RundownQrSection({ links }) {
         <div className="mt-8">
             <h2 className="mb-1 font-semibold text-slate-900">QR Rundown Acara</h2>
             <p className="mb-4 text-sm text-slate-500">
-                Scan QR ini dengan browser HP untuk melihat jadwal rundown terbaru. QR ini hanya untuk jadwal,
-                bukan tiket masuk.
+                QR ini berisi payload jadwal, bukan link. Buka halaman Scan Rundown di HP, lalu pindai QR ini
+                untuk melihat jadwal terbaru. QR ini hanya untuk jadwal, bukan tiket masuk.
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
                 {links.map((link) => (
@@ -612,14 +612,12 @@ function RundownQrSection({ links }) {
                             >
                                 Lihat QR Rundown
                             </button>
-                            <a
-                                href={link.url}
-                                target="_blank"
-                                rel="noreferrer"
+                            <Link
+                                href="/rundown/scan"
                                 className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-sm font-medium py-2 px-4 rounded-lg transition-all"
                             >
-                                Buka halaman
-                            </a>
+                                Buka Scanner
+                            </Link>
                         </div>
                     </div>
                 ))}
@@ -631,15 +629,37 @@ function RundownQrSection({ links }) {
 }
 
 function RundownQrModal({ link, onClose }) {
+    const [copied, setCopied] = useState(false);
+
+    async function copyPayload() {
+        try {
+            await navigator.clipboard.writeText(link.payload);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        } catch {
+        }
+    }
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
             <div className="w-full max-w-sm rounded-xl bg-white p-6 text-center shadow-xl">
                 <h3 className="text-lg font-semibold text-slate-900">{link.event_title}</h3>
-                <p className="mt-1 text-sm text-slate-500">Scan QR ini dengan kamera HP untuk membuka rundown.</p>
+                <p className="mt-1 text-sm text-slate-500">
+                    Buka halaman Scan Rundown di HP, lalu pindai QR ini. QR berisi payload, bukan URL.
+                </p>
                 <div className="mt-4 flex justify-center">
-                    <QRCodeSVG value={link.url} size={240} level="M" />
+                    <QRCodeSVG value={link.payload} size={240} level="M" />
                 </div>
-                <p className="mt-3 break-all text-xs text-slate-400">{link.url}</p>
+                <code className="mt-3 block break-all rounded-lg bg-slate-50 p-2 text-left text-[11px] text-slate-500">
+                    {link.payload}
+                </code>
+                <button
+                    type="button"
+                    onClick={copyPayload}
+                    className="mt-2 text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                >
+                    {copied ? 'Payload tersalin' : 'Salin payload'}
+                </button>
                 <p className="mt-2 text-xs text-slate-500">QR ini bukan tiket masuk konser.</p>
                 <button
                     type="button"

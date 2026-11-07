@@ -55,6 +55,12 @@ class OrderController extends Controller
     {
         $event = $this->events->findPublishedBySlug($slug);
 
+        if ($event->hasPassed()) {
+            return back()->withErrors([
+                'items' => 'Event ini sudah berlangsung dan tiketnya tidak dapat dibeli lagi.',
+            ]);
+        }
+
         if (! $request->user()->is_verified) {
             return back()->withErrors([
                 'items' => 'Verifikasi email Anda terlebih dahulu sebelum membeli tiket.',
@@ -298,7 +304,7 @@ class OrderController extends Controller
     }
 
     /**
-     * @return list<array{event_id: int, event_title: string, event_date: ?string, url: string}>
+     * @return list<array{event_id: int, event_title: string, event_date: ?string, payload: string}>
      */
     private function rundownLinks(Order $order): array
     {
@@ -314,7 +320,7 @@ class OrderController extends Controller
                 'event_id' => $event->id,
                 'event_title' => $event->title,
                 'event_date' => $event->event_date?->format('Y-m-d'),
-                'url' => $this->rundowns->url($order, $event),
+                'payload' => $this->rundowns->payload($order, $event),
             ])
             ->values()
             ->all();

@@ -8,6 +8,7 @@ use App\Models\EventDay;
 use App\Models\EventRundown;
 use App\Models\Order;
 use App\Services\RundownPayload;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -16,13 +17,31 @@ class RundownPageController extends Controller
 {
     public function __construct(private RundownPayload $payload) {}
 
-    public function show(Request $request, string $orderCode, string $eventSlug, string $token): Response
+    public function scan(Request $request): Response|RedirectResponse
     {
-        $order = Order::where('order_code', $orderCode)->firstOrFail();
-        $event = Event::where('slug', $eventSlug)->firstOrFail();
+        $payload = (string) $request->query('payload', '');
 
-        abort_unless($order->status === OrderStatus::Paid->value, 404);
-        abort_unless($this->payload->matches($order, $event, $token), 404);
+        if ($payload === '') {
+            return Inertia::render('Rundown/Scan');
+        }
+
+        $data = $this->payload->parse($payload);
+
+        if ($data === null) {
+            return redirect()
+                ->route('rundown.scan')
+                ->withErrors(['payload' => 'Payload QR tidak valid.']);
+        }
+
+        $order = Order::find($data['order_id']);
+        $event = Event::find($data['event_id']);
+
+        if ($order === null || $event === null || $order->status !== OrderStatus::Paid->value) {
+            return redirect()
+                ->route('rundown.scan')
+                ->withErrors(['payload' => 'Payload QR tidak berlaku untuk pesanan ini.']);
+        }
+
         abort_unless(
             $order->orderItems()
                 ->whereHas('ticketCategory', fn ($query) => $query->where('event_id', $event->id))
@@ -36,6 +55,7 @@ class RundownPageController extends Controller
         ]);
 
         return Inertia::render('Rundown/Show', [
+            'payload' => $payload,
             'event' => [
                 'title' => $event->title,
                 'venue_name' => $event->venue_name,
