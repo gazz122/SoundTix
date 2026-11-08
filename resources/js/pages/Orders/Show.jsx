@@ -596,8 +596,9 @@ function RundownQrSection({ links }) {
         <div className="mt-8">
             <h2 className="mb-1 font-semibold text-slate-900">QR Rundown Acara</h2>
             <p className="mb-4 text-sm text-slate-500">
-                Scan QR ini dengan kamera HP untuk membuka rundown. Halaman viewer-nya statis dan payload jadwal
-                ada di dalam QR, jadi tidak perlu login. QR ini hanya untuk jadwal, bukan tiket masuk.
+                Scan QR ini dengan kamera HP untuk membuka rundown. Halaman rundown selalu mengambil jadwal
+                terbaru dari server, jadi kalau organizer mengubah jadwal, cukup refresh halaman di HP.
+                QR ini hanya untuk jadwal, bukan tiket masuk.
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
                 {links.map((link) => (

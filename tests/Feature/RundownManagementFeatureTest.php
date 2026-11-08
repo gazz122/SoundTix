@@ -191,16 +191,23 @@ class RundownManagementFeatureTest extends TestCase
         $customer = User::factory()->create();
         $order = $this->paidOrderFor($event, $customer);
         $payload = $this->rundownPayload($event, $order);
-        $viewerUrl = app(RundownPayload::class)->viewerUrl($event->load(['eventDays', 'rundowns.performer']));
+        $viewerUrl = app(RundownPayload::class)->viewerUrl($order, $event->load(['eventDays', 'rundowns.performer']));
 
         $this->assertStringStartsWith('rundown.', $payload);
         $this->assertStringNotContainsString('http', $payload);
-        $this->assertStringStartsWith(url('/rundown-viewer.html').'#', $viewerUrl);
-        $this->assertFileExists(public_path('rundown-viewer.html'));
+        $this->assertStringStartsWith(url('/rundown/scan?payload='), $viewerUrl);
 
-        $decoded = json_decode(base64_decode(strtr(explode('#', $viewerUrl)[1], '-_', '+/')), true);
-        $this->assertSame($event->title, $decoded['t']);
-        $this->assertSame('Opening DJ', $decoded['r'][0]['t']);
+        $this->get($viewerUrl)
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Rundown/Show')
+                ->where('event.title', $event->title)
+                ->has('event.rundowns', 1)
+                ->where('event.rundowns.0.title', 'Opening DJ'));
+
+        $event->rundowns()->first()->update(['title' => 'Closing DJ']);
+
+        $this->get($viewerUrl)
+            ->assertInertia(fn (Assert $page) => $page->where('event.rundowns.0.title', 'Closing DJ'));
 
         $this->actingAs($customer)
             ->get("/orders/{$order->order_code}")

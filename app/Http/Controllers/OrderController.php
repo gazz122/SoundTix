@@ -327,7 +327,7 @@ class OrderController extends Controller
                 'event_title' => $event->title,
                 'event_date' => $event->event_date?->format('Y-m-d'),
                 'payload' => $this->rundowns->payload($order, $event),
-                'viewer_url' => $this->rundowns->viewerUrl($event),
+                'viewer_url' => $this->rundowns->viewerUrl($order, $event),
             ])
             ->values()
             ->all();
