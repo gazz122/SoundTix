@@ -642,6 +642,8 @@ Sebagian nilai dijaga database lewat tipe `enum`, sebagian hanya dijaga PHP lewa
 - **Satu refund per order per pembatalan.** Dijaga alur: order yang sudah `cancelled` tidak lagi masuk `settledOrdersFor()`, jadi job yang di-retry tidak membuka refund kedua.
 - **Transisi status.** Enum membatasi nilai yang valid, tetapi tidak membatasi urutannya (`paid` bisa ditulis langsung tanpa lewat `pending`).
 - **`refunds.refund_gateway` dan `payments.payment_type`.** Divalidasi PHP enum di model, bukan oleh database.
+- **Event yang sudah lewat.** Tidak ada kolom penanda. Status "sudah berlangsung" diturunkan dari `events.event_date` dibanding tanggal hari ini di WIB (`Event::hasPassed()`). Penjualan ditolak di `OrderController@store`, dan listing publik memblokir kartu event, tetapi hari-H event tetap boleh dibeli sampai tengah malam WIB.
+- **Akses rundown.** Tidak ada tabel atau kolom akses. Hak melihat rundown diturunkan dari pasangan order + event lewat payload bertanda tangan; halaman `/rundown/scan` query ulang tiap request dan polling tiap 30 detik, jadi perubahan organizer langsung terlihat setelah refresh.
 
 Dua hal yang mudah salah dibaca:
 
@@ -672,6 +674,7 @@ Tambahkan saat data tumbuh, bukan sekarang: index yang tidak terpakai tetap memb
 - Bank yang dipilih pembeli tidak punya kolom sendiri. Yang tersimpan hanya `payments.payment_type = 'bank_transfer'`; bank dan nomor VA-nya ada di dalam `payments.raw_response`.
 - `event_rundowns.title` boleh `NULL` hanya kalau `performer_id` terisi. Aturan "judul atau band" dijaga `RundownController`, bukan constraint database.
 - `event_rundowns.event_day_id` wajib terisi untuk event `multi_day` dan harus `NULL` untuk event `single`; database hanya menjaga foreign key-nya, kewajiban per tipe event dijaga aplikasi.
+- `events.event_date` bertipe `date`, bukan datetime. Perbandingan "sudah lewat" memakai tanggal WIB, jadi acara hari ini tetap dianggap belum lewat sampai berganti hari.
 
 ## 11. Tabel framework (di luar model)
 
