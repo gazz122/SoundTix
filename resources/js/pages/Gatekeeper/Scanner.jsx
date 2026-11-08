@@ -332,29 +332,27 @@ function ValidationResult({ result, onDismiss }) {
     const accepted = result.status === 'success';
     const gated = ['not_open', 'closed', 'no_event_day'].includes(result.status);
 
-    const panelClass = accepted ? 'bg-emerald-500' : gated ? 'bg-amber-400' : 'bg-red-500';
-    const title = accepted ? 'TIKET VALID' : gated ? 'PERLU CEK' : 'TIKET DITOLAK';
-    const mark = accepted ? '✓' : gated ? '?' : '✕';
+    const tone = accepted ? 'bg-emerald-600' : gated ? 'bg-amber-500' : 'bg-red-600';
+    const title = accepted ? 'Tiket valid' : gated ? 'Perlu cek' : 'Tiket ditolak';
 
     return (
-        <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center px-6 text-center ${panelClass}`} role="status" aria-live="assertive">
-            <span aria-hidden="true" className="flex h-24 w-24 items-center justify-center rounded-full bg-white/25 text-5xl font-bold leading-none text-white">
-                {mark}
-            </span>
-            <p className="mt-6 text-3xl font-extrabold tracking-tight text-white">{title}</p>
-            <p className="mt-3 max-w-md text-base font-medium text-white/95">{result.message}</p>
-            {result.ticket && (
-                <p className="mt-1 text-sm text-white/85">
-                    {result.ticket.category} · {result.ticket.event_title}
-                </p>
-            )}
+        <div className={`fixed inset-0 z-50 flex flex-col px-6 py-10 text-white ${tone}`} role="status" aria-live="assertive">
+            <div className="flex flex-1 flex-col items-center justify-center text-center">
+                <p className="text-2xl font-semibold">{title}</p>
+                <p className="mt-2 max-w-sm text-sm text-white/90">{result.message}</p>
+                {result.ticket && (
+                    <p className="mt-4 text-sm text-white/80">
+                        {result.ticket.category} · {result.ticket.event_title}
+                    </p>
+                )}
+            </div>
             {!accepted && (
                 <button
                     type="button"
                     onClick={onDismiss}
-                    className="mt-10 h-14 w-64 max-w-full rounded-xl bg-white px-6 text-base font-semibold text-slate-900 shadow-xl hover:bg-slate-100"
+                    className="mx-auto w-full max-w-xs rounded-lg bg-white py-3 text-sm font-semibold text-slate-900"
                 >
-                    Scan Lagi
+                    Scan lagi
                 </button>
             )}
         </div>
