@@ -426,4 +426,18 @@ class CustomerOrderingFeatureTest extends TestCase
         $this->get("/events/{$upcoming->slug}")
             ->assertInertia(fn (Assert $page) => $page->where('event.has_passed', false));
     }
+
+    public function test_event_listing_flags_a_past_event_as_closed(): void
+    {
+        $past = $this->eventWithCategory(['event_date' => now()->subDay()->toDateString()]);
+        $upcoming = $this->eventWithCategory();
+
+        $this->actingAs($this->customer())
+            ->get('/jelajah')
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('events.data.0.slug', $past->slug)
+                ->where('events.data.0.has_passed', true)
+                ->where('events.data.1.slug', $upcoming->slug)
+                ->where('events.data.1.has_passed', false));
+    }
 }

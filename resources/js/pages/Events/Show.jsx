@@ -1,5 +1,5 @@
 import { Link, router, useForm, usePage } from '@inertiajs/react';
-import { Bookmark } from 'lucide-react';
+import { Bookmark, Ban } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import CartDrawer from '@/components/CartDrawer';
 import PublicLayout from '@/components/PublicLayout';
@@ -160,8 +160,9 @@ export default function Show({ event }) {
                     <div className="mt-8 scroll-mt-40" id="order">
                         <h2 className="text-lg font-semibold text-slate-900">Kategori Tiket</h2>
                         {event.has_passed ? (
-                            <div className="mt-3 rounded-xl border border-slate-200/80 bg-slate-50 p-6 text-sm text-slate-600">
-                                Event ini sudah berlangsung, jadi tiketnya tidak dapat dibeli lagi.
+                            <div className="mt-3 flex items-start gap-2 rounded-xl border border-rose-200/80 bg-rose-50 p-6 text-sm text-rose-700">
+                                <Ban aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+                                <span>Event ini sudah berlangsung, jadi tiketnya tidak dapat dibeli lagi.</span>
                             </div>
                         ) : isCustomer ? (
                             <TicketOrder event={event} />
@@ -202,7 +203,8 @@ export default function Show({ event }) {
 function TicketCta({ user, event }) {
     if (event.has_passed) {
         return (
-            <span className="inline-block cursor-not-allowed rounded-lg bg-slate-200 px-8 py-3 text-center font-semibold text-slate-500">
+            <span className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg bg-slate-200 px-8 py-3 text-center font-semibold text-slate-500">
+                <Ban aria-hidden="true" className="h-4 w-4" />
                 Event Sudah Berlangsung
             </span>
         );

@@ -26,6 +26,7 @@ class EventResource extends JsonResource
             'city' => $this->city,
             'address' => $this->address,
             'event_date' => $this->event_date?->format('Y-m-d'),
+            'has_passed' => $this->hasPassed(),
             'start_time' => $this->time($this->start_time),
             'end_time' => $this->time($this->end_time),
             'starting_price' => $this->starting_price !== null ? (float) $this->starting_price : null,
