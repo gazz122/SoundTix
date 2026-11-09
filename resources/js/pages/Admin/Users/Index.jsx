@@ -45,7 +45,7 @@ export default function Index({ users, filters }) {
     return (
         <AppLayout>
             <Header
-                name="Kelola Pengguna"
+                name="Kelola Organizer"
                 description="Daftar seluruh pengguna platform beserta peran dan status aktivasi."
             />
 

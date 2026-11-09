@@ -100,7 +100,7 @@ export default function PublicLayout({ children }) {
                     <div className="grid gap-8 md:grid-cols-3">
                         <div>
                             <Link href="/" className="flex items-center gap-2.5">
-                                <Logo iconClassName="h-10 w-10" textClassName="text-lg font-semibold" />
+                                <Logo iconClassName="h-9 w-9" textClassName="hidden text-lg font-semibold min-[400px]:inline" />
                             </Link>
                             <p className="mt-3 max-w-xs text-sm text-slate-600">
                                 Platform e-ticketing konser digital. Temukan event, pesan tiket, dan masuk venue
