@@ -598,7 +598,8 @@ function RundownQrSection({ links }) {
             <p className="mb-4 text-sm text-slate-500">
                 Scan QR ini dengan kamera HP untuk membuka rundown. Halaman rundown selalu mengambil jadwal
                 terbaru dari server, jadi kalau organizer mengubah jadwal, cukup refresh halaman di HP.
-                QR ini hanya untuk jadwal, bukan tiket masuk.
+                QR mengikuti IP Wi-Fi komputer saat halaman ini dibuka; kalau IP berubah, muat ulang halaman
+                ini lalu scan QR baru. QR ini hanya untuk jadwal, bukan tiket masuk.
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
                 {links.map((link) => (
@@ -661,13 +662,22 @@ function RundownQrModal({ link, onClose }) {
                         komputer atau domain deploy.
                     </p>
                 )}
-                <button
-                    type="button"
-                    onClick={copyPayload}
-                    className="mt-2 text-xs font-medium text-indigo-600 hover:text-indigo-700"
-                >
-                    {copied ? 'Payload tersalin' : 'Salin payload untuk scan manual'}
-                </button>
+                <div className="mt-2 flex items-center justify-center gap-4">
+                    <button
+                        type="button"
+                        onClick={copyPayload}
+                        className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                    >
+                        {copied ? 'Payload tersalin' : 'Salin payload untuk scan manual'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => window.location.reload()}
+                        className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                    >
+                        Muat ulang QR
+                    </button>
+                </div>
                 <p className="mt-2 text-xs text-slate-500">QR ini bukan tiket masuk konser.</p>
                 <button
                     type="button"
