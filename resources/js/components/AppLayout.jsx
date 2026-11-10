@@ -49,7 +49,7 @@ export default function AppLayout({ children }) {
                     </nav>
                     <div className="mt-auto pt-8">
                         {user && (
-                            <div className="mb-3 flex items-center gap-3 rounded-lg border border-slate-200/80 bg-white px-3 py-2 shadow-sm">
+                            <div className="mb-3 flex items-center gap-3 rounded-lg border border-slate-200/80 bg-black px-3 py-2 shadow-sm">
                                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-sm font-semibold text-white">
                                     {user.name.charAt(0).toUpperCase()}
                                 </span>

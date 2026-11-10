@@ -34,13 +34,13 @@ export default function PublicLayout({ children }) {
                                     <Link
                                         href="/notifications"
                                         aria-label="Notifikasi"
-                                        className="relative flex h-10 w-10 items-center justify-center rounded-lg bg-white/60 border border-slate-300 text-slate-700 transition-all hover:bg-white"
+                                        className="relative flex h-10 w-10 items-center justify-center rounded-lg bg-black/60 border border-slate-300 text-slate-700 transition-all hover:bg-white"
                                     >
                                         <Bell aria-hidden="true" className="h-5 w-5" />
                                     </Link>
                                     <Link
                                         href="/dashboard"
-                                        className="bg-white text-indigo-700 hover:bg-indigo-50 font-medium py-2 px-3 sm:px-5 rounded-lg transition-all shadow-sm text-sm sm:text-base"
+                                        className="bg-black text-indigo-700 hover:bg-indigo-50 font-medium py-2 px-3 sm:px-5 rounded-lg transition-all shadow-sm text-sm sm:text-base"
                                     >
                                         Dashboard
                                     </Link>
@@ -49,13 +49,13 @@ export default function PublicLayout({ children }) {
                                 <>
                                     <Link
                                         href="/login"
-                                        className="bg-white/60 hover:bg-white text-slate-700 border border-slate-300 py-2 px-3 sm:px-5 rounded-lg transition-all text-sm sm:text-base"
+                                        className="bg-black text-indigo-200 hover:bg-indigo-20 font-medium py-2 px-3 sm:px-5 rounded-lg transition-all shadow-sm text-sm sm:text-base"
                                     >
                                         Masuk
                                     </Link>
                                     <Link
                                         href="/register"
-                                        className="bg-white text-indigo-700 hover:bg-indigo-50 font-medium py-2 px-3 sm:px-5 rounded-lg transition-all shadow-sm text-sm sm:text-base"
+                                        className="bg-black text-indigo-200 hover:bg-indigo-20 font-medium py-2 px-3 sm:px-5 rounded-lg transition-all shadow-sm text-sm sm:text-base"
                                     >
                                         Daftar
                                     </Link>
@@ -70,10 +70,10 @@ export default function PublicLayout({ children }) {
                 </div>
             </header>
 
-            <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">{children}</main>
+            <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 bg-black">{children}</main>
 
             {user && (
-                <nav aria-label="Navigasi utama" className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/95 backdrop-blur-xl lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                <nav aria-label="Navigasi utama" className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-black/150 lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
                     <div className="mx-auto grid max-w-md grid-cols-5">
                         {TABS.map((tab) => {
                             const active = url === tab.href || url.startsWith(`${tab.href}/`);

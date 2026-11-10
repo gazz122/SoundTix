@@ -14,8 +14,8 @@ export default function Index({ events, banners, filters }) {
                 <>
                     <BannerCarousel banners={banners} />
                     <div className="mt-10 text-center">
-                        <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900">Konser impian Anda, dalam sekali ketik.</h1>
-                        <p className="mt-2 text-slate-500">
+                        <h1 className="text-2xl sm:text-3xl font-semibold text-white">Konser impian Anda, dalam sekali ketik.</h1>
+                        <p className="mt-2 text-white">
                             Temukan konser, festival, dan event musik terbaik di kota Anda. Pesan tiket digital dengan
                             mudah dan aman - gunakan kolom pencarian di bagian atas.
                         </p>
@@ -24,7 +24,7 @@ export default function Index({ events, banners, filters }) {
             )}
 
             <section className="mt-10">
-                <h2 className="text-xl font-semibold text-slate-900 mb-4">
+                <h2 className="text-xl font-semibold text-white mb-4">
                     {searching ? `Hasil Pencarian "${filters.q}"` : 'Featured Events'}
                 </h2>
                 {list.length === 0 ? (
@@ -56,7 +56,7 @@ function Pagination({ links }) {
                         className={
                             link.active
                                 ? 'bg-indigo-600 text-white font-medium px-3.5 py-2 rounded-lg text-sm'
-                                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-3.5 py-2 rounded-lg text-sm'
+                                : 'bg-black hover:bg-slate-100 text-slate-700 border border-slate-300 px-3.5 py-2 rounded-lg text-sm'
                         }
                     >
                         {isPage ? link.label : link.label === '&laquo; Previous' ? '←' : '→'}

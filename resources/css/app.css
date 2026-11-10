@@ -155,64 +155,64 @@
     color-scheme: dark;
 
     /* Neutrals - ungu gelap redup, bukan hitam pekat */
-    --color-slate-50: #1b1926;
-    --color-slate-100: #eceaf4;
-    --color-slate-200: #e4e2ee;
-    --color-slate-300: #cdcbdd;
-    --color-slate-400: #b9b7c9;
-    --color-slate-500: #a4a1b8;
-    --color-slate-600: #4a4758;
-    --color-slate-700: #363345;
-    --color-slate-800: #2a2836;
-    --color-slate-900: #1f1d29;
-    --color-slate-950: #16151d;
+    --color-slate-50: #030303;
+    --color-slate-100: #050505;
+    --color-slate-200: #040404;
+    --color-slate-300: #0c0c0c;
+    --color-slate-400: #000000;
+    --color-slate-500: #050505;
+    --color-slate-600: #050505;
+    --color-slate-700: #050505;
+    --color-slate-800: #050505;
+    --color-slate-900: #050505;
+    --color-slate-950: #050505;
 
     /* Primary - Sound Violet (dark) */
-    --color-indigo-50: #2c2645;
-    --color-indigo-100: #342d52;
-    --color-indigo-200: #40396a;
-    --color-indigo-300: #b5a3ec;
-    --color-indigo-400: #a58bf0;
-    --color-indigo-500: #a58bf0;
-    --color-indigo-600: #a58bf0;
-    --color-indigo-700: #bfaef5;
+    --color-indigo-50: #050505;
+    --color-indigo-100: #050505;
+    --color-indigo-200: #050505;
+    --color-indigo-300: #050505;
+    --color-indigo-400: #050505;
+    --color-indigo-500: #050505;
+    --color-indigo-600: #050505;
+    --color-indigo-700: #050505;
 
     /* Accent - Sound Cyan (dark) */
-    --color-orange-200: #20343c;
-    --color-orange-500: #8eddeb;
+    --color-orange-200: #050505;
+    --color-orange-500: #050505;
 
     /* Secondary brand - Sound Blue (dark) */
-    --color-blue-50: #1f2b40;
-    --color-blue-100: #25334c;
-    --color-blue-200: #2c3f60;
-    --color-blue-500: #7fa9e8;
-    --color-blue-600: #7fa9e8;
-    --color-blue-700: #a9c5f0;
-    --color-sky-200: #2c3f60;
-    --color-sky-100: #1f2b40;
-    --color-sky-600: #7fa9e8;
-    --color-sky-700: #a9c5f0;
+    --color-blue-50: #050505;
+    --color-blue-100: #050505;
+    --color-blue-200: #050505;
+    --color-blue-500: #050505;
+    --color-blue-600: #050505;
+    --color-blue-700: #050505;
+    --color-sky-200: #050505;
+    --color-sky-100: #050505;
+    --color-sky-600: #050505;
+    --color-sky-700: #050505;
 
     /* Sound Cyan (dark) */
-    --color-cyan-50: #20343c;
-    --color-cyan-100: #20343c;
-    --color-cyan-200: #20343c;
-    --color-cyan-300: #8eddeb;
-    --color-cyan-400: #8eddeb;
-    --color-cyan-500: #7fd3e3;
-    --color-cyan-600: #a3e2ec;
-    --color-cyan-700: #a3e2ec;
-    --color-cyan-800: #bcebf2;
+    --color-cyan-50: #050505;
+    --color-cyan-100: #050505;
+    --color-cyan-200: #050505;
+    --color-cyan-300: #050505;
+    --color-cyan-400: #050505;
+    --color-cyan-500: #050505;
+    --color-cyan-600: #050505;
+    --color-cyan-700: #050505;
+    --color-cyan-800: #050505;
 
     /* Status soft + solid (dark) */
-    --color-emerald-50: #1e2b22;
-    --color-emerald-100: #293a2e;
-    --color-emerald-200: #3b5943;
-    --color-emerald-300: #6fa07b;
-    --color-emerald-400: #7db08a;
-    --color-emerald-500: #7db08a;
-    --color-emerald-600: #8cc09a;
-    --color-emerald-700: #9dc6a7;
+    --color-emerald-50: #050505;
+    --color-emerald-100: #050505;
+    --color-emerald-200: #050505;
+    --color-emerald-300: #050505;
+    --color-emerald-400: #050505;
+    --color-emerald-500: #050505;
+    --color-emerald-600: #050505;
+    --color-emerald-700: #050505;
 
     --color-amber-50: #2e2818;
     --color-amber-100: #3d331f;
