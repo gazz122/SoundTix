@@ -32,6 +32,9 @@
              cannot silently change what the suite asserts. -->
         <env name="REFUND_AUTOMATION_ENABLED" value="false"/>
         <env name="MIDTRANS_IRIS_ENABLED" value="false"/>
+        <!-- The rundown QR falls back to the request host; a local .env tunnel
+             URL must not leak into assertions. -->
+        <env name="RUNDOWN_PUBLIC_URL" value="" force="true"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>

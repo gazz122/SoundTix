@@ -56,6 +56,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Public Rundown URL
+    |--------------------------------------------------------------------------
+    |
+    | Optional public base URL (for example a tunnel) used by the rundown QR.
+    | When empty, the QR falls back to the request host or the machine's LAN IP.
+    |
+    */
+
+    'rundown_public_url' => env('RUNDOWN_PUBLIC_URL'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

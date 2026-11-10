@@ -598,8 +598,8 @@ function RundownQrSection({ links }) {
             <p className="mb-4 text-sm text-slate-500">
                 Scan QR ini dengan kamera HP untuk membuka rundown. Halaman rundown selalu mengambil jadwal
                 terbaru dari server, jadi kalau organizer mengubah jadwal, cukup refresh halaman di HP.
-                QR mengikuti IP Wi-Fi komputer saat halaman ini dibuka; kalau IP berubah, muat ulang halaman
-                ini lalu scan QR baru. QR ini hanya untuk jadwal, bukan tiket masuk.
+                QR mengarah ke alamat publik aplikasi, jadi HP boleh memakai jaringan yang berbeda dari
+                komputer. QR ini hanya untuk jadwal, bukan tiket masuk.
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
                 {links.map((link) => (
@@ -650,7 +650,8 @@ function RundownQrModal({ link, onClose }) {
             <div className="max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-6 text-center shadow-xl">
                 <h3 className="text-lg font-semibold text-slate-900">{link.event_title}</h3>
                 <p className="mt-1 text-sm text-slate-500">
-                    Scan QR ini dengan kamera HP. Halaman rundown akan terbuka langsung di browser.
+                    Scan QR ini dengan kamera HP. Halaman rundown akan terbuka langsung di browser, dari
+                    jaringan mana pun.
                 </p>
                 <div className="mt-4 flex justify-center">
                     <QRCodeSVG value={link.viewer_url} size={240} level="L" />

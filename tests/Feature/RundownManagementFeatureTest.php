@@ -226,6 +226,19 @@ class RundownManagementFeatureTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->has('order.rundown_links', 0));
     }
 
+    public function test_rundown_viewer_uses_the_public_url_when_configured(): void
+    {
+        $event = $this->publishedEvent($this->organizer());
+        $order = $this->paidOrderFor($event, User::factory()->create());
+
+        config(['app.rundown_public_url' => 'https://soundtix.example/']);
+
+        $this->assertStringStartsWith(
+            'https://soundtix.example/rundown/scan?payload=',
+            app(RundownPayload::class)->viewerUrl($order, $event),
+        );
+    }
+
     public function test_gatekeeper_dashboard_shows_rundowns_of_upcoming_events(): void
     {
         $organizer = $this->organizer();

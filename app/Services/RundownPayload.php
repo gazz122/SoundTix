@@ -50,7 +50,13 @@ class RundownPayload
      */
     public function viewerUrl(Order $order, Event $event): string
     {
-        return $this->baseUrl().'/rundown/scan?payload='.urlencode($this->payload($order, $event));
+        $base = rtrim((string) config('app.rundown_public_url'), '/');
+
+        if ($base === '') {
+            $base = $this->baseUrl();
+        }
+
+        return $base.'/rundown/scan?payload='.urlencode($this->payload($order, $event));
     }
 
     /**
