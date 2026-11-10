@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\RundownPayload;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\URL;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -237,6 +238,20 @@ class RundownManagementFeatureTest extends TestCase
             'https://soundtix.example/rundown/scan?payload=',
             app(RundownPayload::class)->viewerUrl($order, $event),
         );
+    }
+
+    public function test_rundown_page_emits_https_assets_when_opened_through_the_public_url(): void
+    {
+        $event = $this->publishedEvent($this->organizer());
+        $order = $this->paidOrderFor($event, User::factory()->create());
+
+        config(['app.rundown_public_url' => 'https://soundtix.example']);
+
+        $this->get('https://soundtix.example/rundown/scan?payload='.app(RundownPayload::class)->payload($order, $event))
+            ->assertOk()
+            ->assertSee('https://soundtix.example/build/', false);
+
+        URL::forceScheme('http');
     }
 
     public function test_gatekeeper_dashboard_shows_rundowns_of_upcoming_events(): void

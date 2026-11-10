@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureUserHasRole;
+use App\Http\Middleware\ForceHttpsOnPublicTunnel;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RedirectGatekeepersToScanner;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -33,12 +34,16 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // The dev tunnel (and any TLS-terminating proxy) forwards plain HTTP,
+        // so trust its X-Forwarded-* headers or asset URLs come out as http://
+        // and the browser blocks them on the https page.
+        $middleware->trustProxies(at: '*');
         $middleware->throttleApi('api');
         $middleware->alias([
             'role' => EnsureUserHasRole::class,
             'redirect.gatekeepers' => RedirectGatekeepersToScanner::class,
         ]);
-        $middleware->web(append: [HandleInertiaRequests::class]);
+        $middleware->web(append: [HandleInertiaRequests::class, ForceHttpsOnPublicTunnel::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
