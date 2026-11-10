@@ -7,6 +7,7 @@ use App\Models\Performer;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -374,8 +375,8 @@ class EventManagementFeatureTest extends TestCase
                 ...$this->validPayload(),
                 'duration_type' => 'single',
                 'total_days' => 1,
-                'open_gate' => now()->addDays(10)->setTime(16, 0)->format('Y-m-d\TH:i'),
-                'close_gate' => now()->addDays(10)->setTime(22, 0)->format('Y-m-d\TH:i'),
+                'open_gate' => '16:00',
+                'close_gate' => '22:00',
             ])
             ->assertRedirect();
 
@@ -385,41 +386,35 @@ class EventManagementFeatureTest extends TestCase
 
         $day = $event->eventDays()->firstOrFail();
         $this->assertSame($date, $day->date->toDateString());
-        $this->assertSame('09:00:00', $day->open_gate->format('H:i:s'));
-        $this->assertSame('15:00:00', $day->close_gate->format('H:i:s'));
+        $this->assertSame($date.' 09:00:00', $day->open_gate->format('Y-m-d H:i:s'));
+        $this->assertSame($date.' 15:00:00', $day->close_gate->format('Y-m-d H:i:s'));
     }
 
-    public function test_close_gate_may_be_earlier_in_the_day_on_the_same_date(): void
+    public function test_edit_page_returns_gate_times_without_dates(): void
     {
         $organizer = $this->organizer();
-        $date = now()->addDays(10)->toDateString();
+        $event = Event::factory()->draft()->create([
+            'organizer_id' => $organizer->id,
+            'open_gate' => Carbon::parse('10:00', 'Asia/Jakarta')->utc(),
+            'close_gate' => Carbon::parse('22:00', 'Asia/Jakarta')->utc(),
+        ]);
 
         $this->actingAs($organizer)
-            ->post('/organizer/events', [
-                ...$this->validPayload(),
-                'duration_type' => 'single',
-                'total_days' => 1,
-                'open_gate' => $date.'T20:00',
-                'close_gate' => $date.'T08:00',
-            ])
-            ->assertRedirect()
-            ->assertSessionHasNoErrors();
-
-        $day = Event::where('organizer_id', $organizer->id)->firstOrFail()->eventDays()->firstOrFail();
-        $this->assertSame('08:00', $day->close_gate->setTimezone('Asia/Jakarta')->format('H:i'));
+            ->get("/organizer/events/{$event->id}/edit")
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('event.open_gate', '10:00')
+                ->where('event.close_gate', '22:00'));
     }
 
-    public function test_close_gate_rejects_a_date_before_the_open_gate(): void
+    public function test_close_gate_rejects_a_time_before_the_open_gate(): void
     {
-        $date = now()->addDays(10);
-
         $this->actingAs($this->organizer())
             ->post('/organizer/events', [
                 ...$this->validPayload(),
                 'duration_type' => 'single',
                 'total_days' => 1,
-                'open_gate' => $date->toDateString().'T20:00',
-                'close_gate' => $date->copy()->subDay()->toDateString().'T23:00',
+                'open_gate' => '20:00',
+                'close_gate' => '08:00',
             ])
             ->assertSessionHasErrors('close_gate');
 
@@ -438,10 +433,10 @@ class EventManagementFeatureTest extends TestCase
                 'duration_type' => 'multi_day',
                 'total_days' => 2,
                 'event_days' => [
-                    // Day 1 closes before day 2 ever opens, which used to be compared
-                    // against every day's open gate instead of its own.
-                    ['day_number' => 1, 'date' => $day1, 'open_gate' => $day1.'T18:00', 'close_gate' => $day1.'T08:00'],
-                    ['day_number' => 2, 'date' => $day2, 'open_gate' => $day2.'T18:00', 'close_gate' => $day2.'T23:00'],
+                    // Day 1 closes late while day 2 closes early: each day is
+                    // compared against its own opening time, not day 1's.
+                    ['day_number' => 1, 'date' => $day1, 'open_gate' => '20:00', 'close_gate' => '23:00'],
+                    ['day_number' => 2, 'date' => $day2, 'open_gate' => '10:00', 'close_gate' => '12:00'],
                 ],
             ])
             ->assertRedirect()
@@ -449,7 +444,29 @@ class EventManagementFeatureTest extends TestCase
 
         $days = Event::where('organizer_id', $organizer->id)->firstOrFail()->eventDays()->orderBy('day_number')->get();
         $this->assertCount(2, $days);
-        $this->assertSame('08:00', $days[0]->close_gate->setTimezone('Asia/Jakarta')->format('H:i'));
+        $this->assertSame($day1.' 13:00:00', $days[0]->open_gate->format('Y-m-d H:i:s'));
+        $this->assertSame($day2.' 03:00:00', $days[1]->open_gate->format('Y-m-d H:i:s'));
+        $this->assertSame('12:00', $days[1]->close_gate->setTimezone('Asia/Jakarta')->format('H:i'));
+    }
+
+    public function test_multi_day_close_gate_rejects_a_time_before_its_own_open_gate(): void
+    {
+        $day1 = now()->addDays(5)->toDateString();
+        $day2 = now()->addDays(6)->toDateString();
+
+        $this->actingAs($this->organizer())
+            ->post('/organizer/events', [
+                ...$this->validPayload(),
+                'duration_type' => 'multi_day',
+                'total_days' => 2,
+                'event_days' => [
+                    ['day_number' => 1, 'date' => $day1, 'open_gate' => '18:00', 'close_gate' => '23:00'],
+                    ['day_number' => 2, 'date' => $day2, 'open_gate' => '18:00', 'close_gate' => '08:00'],
+                ],
+            ])
+            ->assertSessionHasErrors('event_days.1.close_gate');
+
+        $this->assertCount(0, Event::all());
     }
 
     public function test_organizer_can_create_multi_day_event_with_daily_schedule(): void
@@ -465,7 +482,7 @@ class EventManagementFeatureTest extends TestCase
                 'duration_type' => 'multi_day',
                 'total_days' => 3,
                 'event_days' => [
-                    ['day_number' => 1, 'date' => $day1, 'open_gate' => $day1.'T16:00', 'close_gate' => $day1.'T22:00'],
+                    ['day_number' => 1, 'date' => $day1, 'open_gate' => '16:00', 'close_gate' => '22:00'],
                     ['day_number' => 2, 'date' => $day2, 'open_gate' => '', 'close_gate' => ''],
                     ['day_number' => 3, 'date' => $day3, 'open_gate' => null, 'close_gate' => null],
                 ],
@@ -483,8 +500,8 @@ class EventManagementFeatureTest extends TestCase
         $this->assertCount(3, $days);
         $this->assertSame([1, 2, 3], $days->pluck('day_number')->all());
         $this->assertSame($day2, $days[1]->date->toDateString());
-        $this->assertSame('09:00:00', $days[0]->open_gate->format('H:i:s'));
-        $this->assertSame('15:00:00', $days[0]->close_gate->format('H:i:s'));
+        $this->assertSame($day1.' 09:00:00', $days[0]->open_gate->format('Y-m-d H:i:s'));
+        $this->assertSame($day1.' 15:00:00', $days[0]->close_gate->format('Y-m-d H:i:s'));
         $this->assertNull($days[1]->open_gate);
         $this->assertNull($days[2]->close_gate);
     }

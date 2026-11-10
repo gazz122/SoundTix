@@ -29,6 +29,8 @@ export default function Form({ event }) {
 
     const [previewUrl, setPreviewUrl] = useState(event?.banner_url ?? null);
 
+    const dayOneHasGate = Boolean(data.event_days[0]?.open_gate || data.event_days[0]?.close_gate);
+
     transform((previous) => ({
         ...previous,
         performers: previous.performers
@@ -65,6 +67,32 @@ export default function Form({ event }) {
 
     function updateDay(index, key, value) {
         setData('event_days', data.event_days.map((day, i) => (i === index ? { ...day, [key]: value } : day)));
+    }
+
+    function pullGateTimes(index) {
+        const source = data.event_days[0];
+
+        setData(
+            'event_days',
+            data.event_days.map((day, i) =>
+                i === index
+                    ? { ...day, open_gate: source.open_gate ?? '', close_gate: source.close_gate ?? '' }
+                    : day,
+            ),
+        );
+    }
+
+    function pullGateTimesToEveryDay() {
+        const source = data.event_days[0];
+
+        setData(
+            'event_days',
+            data.event_days.map((day, i) =>
+                i === 0
+                    ? day
+                    : { ...day, open_gate: source.open_gate ?? '', close_gate: source.close_gate ?? '' },
+            ),
+        );
     }
 
     function dayError(index, key) {
@@ -187,11 +215,11 @@ export default function Form({ event }) {
                                 <Field label="Jam Selesai Acara (opsional)" type="time" value={data.end_time} onChange={(value) => setData('end_time', value)} error={errors.end_time} />
                             </div>
                             <div className="grid gap-4 sm:grid-cols-2">
-                                <Field label="Jam Buka Pintu (opsional)" type="datetime-local" value={data.open_gate} onChange={(value) => setData('open_gate', value)} error={errors.open_gate} />
-                                <Field label="Jam Tutup Pintu (opsional)" type="datetime-local" value={data.close_gate} onChange={(value) => setData('close_gate', value)} error={errors.close_gate} />
+                                <Field label="Jam Buka Pintu (opsional)" type="time" value={data.open_gate} onChange={(value) => setData('open_gate', value)} error={errors.open_gate} />
+                                <Field label="Jam Tutup Pintu (opsional)" type="time" value={data.close_gate} onChange={(value) => setData('close_gate', value)} error={errors.close_gate} />
                             </div>
                             <p className="text-xs text-slate-400">
-                                Jam mulai acara berbeda dari jam pintu. Scan tiket hanya diterima setelah pintu dibuka dan sebelum pintu ditutup. Waktu dalam WIB. Tanggal tutup pintu tidak boleh sebelum tanggal buka; jamnya bebas.
+                                Jam mulai acara berbeda dari jam pintu. Scan tiket hanya diterima setelah pintu dibuka dan sebelum pintu ditutup. Tanggal pintu mengikuti tanggal event, cukup isi jamnya (WIB). Jam tutup tidak boleh sebelum jam buka.
                             </p>
                         </>
                     ) : (
@@ -210,7 +238,30 @@ export default function Form({ event }) {
                             <div className="space-y-3">
                                 {data.event_days.map((day, index) => (
                                     <div key={day.day_number} className="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
-                                        <p className="mb-3 text-sm font-medium text-slate-700">Day {day.day_number}</p>
+                                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                            <p className="text-sm font-medium text-slate-700">Day {day.day_number}</p>
+                                            {index === 0 ? (
+                                                data.event_days.length > 1 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={pullGateTimesToEveryDay}
+                                                        disabled={!dayOneHasGate}
+                                                        className="text-xs font-medium text-indigo-600 hover:text-indigo-700 disabled:cursor-not-allowed disabled:text-slate-400"
+                                                    >
+                                                        Tarik ke semua hari
+                                                    </button>
+                                                )
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => pullGateTimes(index)}
+                                                    disabled={!dayOneHasGate}
+                                                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700 disabled:cursor-not-allowed disabled:text-slate-400"
+                                                >
+                                                    Tarik jam dari Hari 1
+                                                </button>
+                                            )}
+                                        </div>
                                         <div className="grid gap-3 sm:grid-cols-4">
                                             <div className="sm:col-span-1">
                                                 <DayField
@@ -224,7 +275,7 @@ export default function Form({ event }) {
                                             <div className="sm:col-span-1">
                                                 <DayField
                                                     label="Jam Buka Pintu (opsional)"
-                                                    type="datetime-local"
+                                                    type="time"
                                                     value={day.open_gate}
                                                     onChange={(value) => updateDay(index, 'open_gate', value)}
                                                     error={dayError(index, 'open_gate')}
@@ -233,7 +284,7 @@ export default function Form({ event }) {
                                             <div className="sm:col-span-1">
                                                 <DayField
                                                     label="Jam Tutup Pintu (opsional)"
-                                                    type="datetime-local"
+                                                    type="time"
                                                     value={day.close_gate}
                                                     onChange={(value) => updateDay(index, 'close_gate', value)}
                                                     error={dayError(index, 'close_gate')}
@@ -245,7 +296,7 @@ export default function Form({ event }) {
                                 ))}
                             </div>
                             <p className="text-xs text-slate-400">
-                                Jam mulai acara berbeda dari jam pintu. Atur jam buka/tutup pintu tiap hari; scan tiket hanya diterima dalam rentang tersebut. Tanggal & waktu dalam WIB. Tiap hari dibandingkan dengan gate-nya sendiri, jadi jam tutup boleh lebih awal dari jam buka asal tanggalnya sama.
+                                Jam mulai acara berbeda dari jam pintu. Tanggal pintu mengikuti tanggal hari, cukup isi jamnya (WIB). Jam tutup tidak boleh sebelum jam buka di hari yang sama. Kalau semua hari memakai jam pintu yang sama, isi Hari 1 lalu klik "Tarik ke semua hari".
                             </p>
                         </>
                     )}

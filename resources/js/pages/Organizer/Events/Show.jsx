@@ -48,9 +48,9 @@ export default function Show({ event }) {
                                         Day {day.day_number} · {formatDate(day.date)}
                                     </span>
                                     {' · '}
-                                    Buka {day.open_gate ? `${day.open_gate.replace('T', ' ')} WIB` : 'Belum diatur'}
+                                    Buka {day.open_gate ? `${day.open_gate} WIB` : 'Belum diatur'}
                                     {' · '}
-                                    Tutup {day.close_gate ? `${day.close_gate.replace('T', ' ')} WIB` : 'Belum diatur'}
+                                    Tutup {day.close_gate ? `${day.close_gate} WIB` : 'Belum diatur'}
                                 </p>
                             ))}
                         </div>

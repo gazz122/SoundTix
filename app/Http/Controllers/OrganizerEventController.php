@@ -193,9 +193,9 @@ class OrganizerEventController extends Controller
         $isMulti = $request->input('duration_type') === 'multi_day';
         $totalDays = (int) ($request->input('total_days') ?? 1);
 
-        // Closing time is a deadline inside the open day, not a moment that must
-        // come after the opening time, so only the calendar date is compared.
-        $closeNotBeforeOpen = function (string $attribute, mixed $value, Closure $fail) use ($request): void {
+        // Gate inputs carry a time only; the date comes from the event day, so
+        // the closing time must fall on or after the opening time of that day.
+        $gateCloseRule = function (string $attribute, mixed $value, Closure $fail) use ($request): void {
             $open = $request->input(preg_replace('/close_gate$/', 'open_gate', $attribute));
 
             if (! is_string($open) || trim($open) === '' || ! is_string($value) || trim($value) === '') {
@@ -203,14 +203,14 @@ class OrganizerEventController extends Controller
             }
 
             try {
-                $openDate = Carbon::parse($open)->startOfDay();
-                $closeDate = Carbon::parse($value)->startOfDay();
+                $openTime = Carbon::createFromFormat('H:i', trim($open));
+                $closeTime = Carbon::createFromFormat('H:i', trim($value));
             } catch (\Throwable) {
                 return;
             }
 
-            if ($closeDate->lt($openDate)) {
-                $fail('Tanggal tutup pintu tidak boleh sebelum tanggal buka pintu.');
+            if ($closeTime->lt($openTime)) {
+                $fail('Jam tutup pintu tidak boleh sebelum jam buka pintu.');
             }
         };
 
@@ -225,13 +225,13 @@ class OrganizerEventController extends Controller
             'event_date' => $isMulti ? ['nullable', 'date'] : ['required', 'date', 'after:today'],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['nullable', 'date_format:H:i'],
-            'open_gate' => ['nullable', 'date'],
-            'close_gate' => ['nullable', 'date', $closeNotBeforeOpen],
+            'open_gate' => ['nullable', 'date_format:H:i'],
+            'close_gate' => ['nullable', 'date_format:H:i', $gateCloseRule],
             'event_days' => $isMulti ? ['required', 'array', 'size:'.$totalDays] : ['nullable', 'array'],
             'event_days.*.day_number' => ['required', 'integer', 'distinct', 'min:1', 'max:30'],
             'event_days.*.date' => $isMulti ? ['required', 'date', 'after:today'] : ['nullable', 'date'],
-            'event_days.*.open_gate' => ['nullable', 'date'],
-            'event_days.*.close_gate' => ['nullable', 'date', $closeNotBeforeOpen],
+            'event_days.*.open_gate' => ['nullable', 'date_format:H:i'],
+            'event_days.*.close_gate' => ['nullable', 'date_format:H:i', $gateCloseRule],
             'status' => ['required', Rule::enum(EventStatus::class)->only([EventStatus::Draft, EventStatus::Pending])],
             'banner' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:2048'],
             'performers' => ['nullable', 'array'],
@@ -245,14 +245,14 @@ class OrganizerEventController extends Controller
             ? collect($validated['event_days'])->map(fn (array $day) => [
                 'day_number' => $day['day_number'],
                 'date' => $day['date'],
-                'open_gate' => $this->toUtcWib($day['open_gate'] ?? null),
-                'close_gate' => $this->toUtcWib($day['close_gate'] ?? null),
+                'open_gate' => $this->wibGate($day['date'], $day['open_gate'] ?? null),
+                'close_gate' => $this->wibGate($day['date'], $day['close_gate'] ?? null),
             ])->values()->all()
             : [[
                 'day_number' => 1,
                 'date' => $validated['event_date'],
-                'open_gate' => $this->toUtcWib($validated['open_gate'] ?? null),
-                'close_gate' => $this->toUtcWib($validated['close_gate'] ?? null),
+                'open_gate' => $this->wibGate($validated['event_date'], $validated['open_gate'] ?? null),
+                'close_gate' => $this->wibGate($validated['event_date'], $validated['close_gate'] ?? null),
             ]];
 
         return [
@@ -266,8 +266,8 @@ class OrganizerEventController extends Controller
             'total_days' => $totalDays,
             'start_time' => $validated['start_time'],
             'end_time' => $validated['end_time'] ?? null,
-            'open_gate' => $isMulti ? null : $this->toUtcWib($validated['open_gate'] ?? null),
-            'close_gate' => $isMulti ? null : $this->toUtcWib($validated['close_gate'] ?? null),
+            'open_gate' => $isMulti ? null : $eventDays[0]['open_gate'],
+            'close_gate' => $isMulti ? null : $eventDays[0]['close_gate'],
             'status' => $validated['status'],
             'performers' => $this->normalizePerformers($validated['performers'] ?? []),
             'event_days' => $eventDays,
@@ -325,15 +325,16 @@ class OrganizerEventController extends Controller
     }
 
     /**
-     * Convert a WIB datetime-local input to an application-timezone (UTC) timestamp.
+     * Combine a day's date with a time-only gate input (WIB) into an
+     * application-timezone (UTC) timestamp.
      */
-    private function toUtcWib(mixed $value): ?string
+    private function wibGate(?string $date, mixed $time): ?string
     {
-        if ($value === null || $value === '') {
+        if ($date === null || $date === '' || ! is_string($time) || trim($time) === '') {
             return null;
         }
 
-        return Carbon::parse($value, 'Asia/Jakarta')
+        return Carbon::parse($date.' '.$time, 'Asia/Jakarta')
             ->setTimezone('UTC')
             ->format('Y-m-d H:i:s');
     }
@@ -344,7 +345,7 @@ class OrganizerEventController extends Controller
             return null;
         }
 
-        return $value->copy()->setTimezone('Asia/Jakarta')->format('Y-m-d\TH:i');
+        return $value->copy()->setTimezone('Asia/Jakarta')->format('H:i');
     }
 
     private function wibLabel(mixed $value): ?string
