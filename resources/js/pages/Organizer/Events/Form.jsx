@@ -2,8 +2,19 @@ import { Link, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import StatusBadge from '@/components/StatusBadge';
+import { addDays } from '@/lib/format';
 
 const MAX_DAYS = 30;
+
+function buildDays(count, current, startDate) {
+    return Array.from({ length: count }, (_, index) => {
+        const number = index + 1;
+        const existing = current.find((day) => Number(day.day_number) === number);
+        const day = existing ?? { day_number: number, open_gate: '', close_gate: '' };
+
+        return { ...day, date: startDate ? addDays(startDate, index) : (day.date ?? '') };
+    });
+}
 
 export default function Form({ event }) {
     const isEdit = Boolean(event);
@@ -18,6 +29,7 @@ export default function Form({ event }) {
         duration_type: event?.duration_type ?? 'single',
         total_days: event?.total_days ?? 1,
         event_days: event?.event_days ?? [],
+        start_date: event?.event_days?.[0]?.date ?? event?.event_date ?? '',
         start_time: event?.start_time ?? '19:00',
         end_time: event?.end_time ?? '',
         open_gate: event?.open_gate ?? '',
@@ -47,22 +59,36 @@ export default function Form({ event }) {
 
     function handleDurationType(value) {
         if (value === 'multi_day' && data.event_days.length === 0) {
-            handleTotalDays(data.total_days);
+            const startDate = data.event_date || '';
+
+            setData((data) => ({
+                ...data,
+                duration_type: value,
+                start_date: startDate,
+                event_days: buildDays(data.total_days, data.event_days, startDate),
+            }));
             return;
         }
+
         setData('duration_type', value);
     }
 
     function handleTotalDays(value) {
         const days = Math.min(MAX_DAYS, Math.max(0, Number(value) || 0));
-        const current = data.event_days;
-        const next = Array.from({ length: days }, (_, index) => {
-            const number = index + 1;
-            const existing = current.find((day) => Number(day.day_number) === number);
-            return existing ?? { day_number: number, date: '', open_gate: '', close_gate: '' };
-        });
 
-        setData((data) => ({ ...data, total_days: days, event_days: next }));
+        setData((data) => ({
+            ...data,
+            total_days: days,
+            event_days: buildDays(days, data.event_days, data.start_date),
+        }));
+    }
+
+    function handleStartDate(value) {
+        setData((data) => ({
+            ...data,
+            start_date: value,
+            event_days: buildDays(data.event_days.length, data.event_days, value),
+        }));
     }
 
     function updateDay(index, key, value) {
@@ -225,6 +251,13 @@ export default function Form({ event }) {
                     ) : (
                         <>
                             <Field
+                                label="Tanggal Mulai"
+                                type="date"
+                                value={data.start_date}
+                                onChange={handleStartDate}
+                                hint="Tanggal tiap hari diisi otomatis berurutan dari tanggal ini."
+                            />
+                            <Field
                                 label="Jumlah Hari"
                                 type="number"
                                 min="1"
@@ -270,6 +303,7 @@ export default function Form({ event }) {
                                                     value={day.date}
                                                     onChange={(value) => updateDay(index, 'date', value)}
                                                     error={dayError(index, 'date')}
+                                                    readOnly
                                                 />
                                             </div>
                                             <div className="sm:col-span-1">
@@ -398,7 +432,7 @@ function Field({ label, type = 'text', value, onChange, error, placeholder, min,
     );
 }
 
-function DayField({ label, type = 'text', value, onChange, error }) {
+function DayField({ label, type = 'text', value, onChange, error, readOnly = false }) {
     return (
         <label className="block">
             <span className="block text-[11px] font-medium text-slate-500">{label}</span>
@@ -406,7 +440,10 @@ function DayField({ label, type = 'text', value, onChange, error }) {
                 type={type}
                 value={value}
                 onChange={(eventChange) => onChange(eventChange.target.value)}
-                className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 transition-all text-sm"
+                readOnly={readOnly}
+                className={`w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 transition-all text-sm ${
+                    readOnly ? 'cursor-not-allowed bg-slate-100 text-slate-500' : 'bg-white text-slate-900'
+                }`}
             />
             {error && <p className="text-xs text-rose-600">{error}</p>}
         </label>
